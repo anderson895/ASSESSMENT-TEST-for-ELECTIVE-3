@@ -120,6 +120,15 @@ table ang Order #1 na may subtotal ₱475.50, total tax ₱40.06, at grand total
 
 ---
 
+## Bonus — Inline Validation
+
+Sa halip na basic na popup, ang mga kulang na required field ay **naka-highlight
+ng pula** na may malinaw na mensahe. Nawawala ito agad pagka-type ng user.
+
+![Validation highlight](11-validation-highlight.png)
+
+---
+
 ### Feature Checklist (per requirements)
 
 - [x] **UI** — malapit sa sample layout ng professor, polished spacing/alignment

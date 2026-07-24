@@ -81,6 +81,29 @@ async function postJSON(url, payload) {
     return data;
 }
 
+/* ---------- inline validation UI (replaces plain alerts) ---------- */
+const CUSTOMER_FIELDS = ["customerName", "contactNumber", "orderNumber"];
+
+function setInvalid(el, on) {
+    if (el) el.classList.toggle("invalid", on);
+}
+function clearAllInvalid() {
+    CUSTOMER_FIELDS.forEach((id) => setInvalid($("#" + id), false));
+}
+/** Show an inline message under the buttons (type: "err" | "ok"). */
+function showNotice(msg, type = "err") {
+    const n = $("#formNotice");
+    if (!n) return;
+    n.textContent = msg || "";
+    n.className = "form-notice" + (msg ? " " + type : "");
+    if (msg) {                       // re-trigger the shake animation
+        n.classList.remove("shake");
+        void n.offsetWidth;
+        n.classList.add("shake");
+    }
+}
+function clearNotice() { showNotice(""); }
+
 /* ---------- render the bill summary into the page ---------- */
 function renderSummary(summary) {
     const totals = summary.category_totals || {};
@@ -98,34 +121,44 @@ function renderSummary(summary) {
 
 /* ---------- button: FIND ---------- */
 async function onFind() {
-    const keyword = $("#contactNumber").value.trim() || $("#orderNumber").value.trim();
+    const contact = $("#contactNumber");
+    const order   = $("#orderNumber");
+    const keyword = contact.value.trim() || order.value.trim();
     if (!keyword) {
-        alert("Enter a Contact Number or Order Number to search.");
+        setInvalid(contact, true);
+        setInvalid(order, true);
+        showNotice("Enter a Contact Number or Order Number to search.");
+        contact.focus();
         return;
     }
     const data = await postJSON("api/find_customer.php", { keyword });
     if (!data.ok) {
-        alert(data.error || "Customer not found.");
+        setInvalid(contact, true);
+        setInvalid(order, true);
+        showNotice(data.error || "Customer not found.");
         return;
     }
     $("#customerName").value  = data.customer.customer_name;
     $("#contactNumber").value = data.customer.contact_number;
     $("#orderNumber").value   = data.customer.order_number;
+    clearAllInvalid();
+    showNotice("✔ Customer found — details loaded.", "ok");
 }
 
 /* ---------- button: TOTAL / BILL (compute) ---------- */
 async function computeBill() {
     const cart = collectCart();
     if (cart.length === 0) {
-        alert("Enter at least one quantity first.");
+        showNotice("Enter at least one quantity first.");
         return null;
     }
     const data = await postJSON("api/calculate.php", { cart });
     if (!data.ok) {
-        alert(data.error || "Calculation failed.");
+        showNotice(data.error || "Calculation failed.");
         return null;
     }
     renderSummary(data.summary);
+    clearNotice();
     return data.summary;
 }
 
@@ -133,20 +166,34 @@ async function computeBill() {
 async function onBill() {
     const cart = collectCart();
     if (cart.length === 0) {
-        alert("Enter at least one quantity first.");
+        showNotice("Enter at least one quantity first.");
         return;
     }
-    const data = await postJSON("api/save_order.php", {
-        customer: currentCustomer(),
-        cart,
-    });
+    // Highlight any missing required customer field.
+    const customer = currentCustomer();
+    const map = { name: "customerName", contact: "contactNumber", order_number: "orderNumber" };
+    let firstMissing = null;
+    for (const key of ["name", "contact", "order_number"]) {
+        const el = $("#" + map[key]);
+        const missing = !customer[key];
+        setInvalid(el, missing);
+        if (missing && !firstMissing) firstMissing = el;
+    }
+    if (firstMissing) {
+        showNotice("Please complete the highlighted customer fields before billing.");
+        firstMissing.focus();
+        return;
+    }
+
+    const data = await postJSON("api/save_order.php", { customer, cart });
     if (!data.ok) {
-        alert(data.error || "Unable to save the bill.");
+        showNotice(data.error || "Unable to save the bill.");
         return;
     }
     renderSummary(data.summary);
+    clearAllInvalid();
+    showNotice("✔ Bill saved — Order #" + data.order_id, "ok");
     $("#billTransactions").scrollIntoView({ behavior: "smooth", block: "center" });
-    alert("Bill saved. Order #" + data.order_id);
 }
 
 /* ---------- receipt modal helpers ---------- */
@@ -154,7 +201,7 @@ async function onBill() {
 async function fetchReceipt() {
     const cart = collectCart();
     if (cart.length === 0) {
-        alert("Enter at least one quantity first.");
+        showNotice("Enter at least one quantity first.");
         return null;
     }
     const data = await postJSON("api/email.php", {
@@ -163,9 +210,10 @@ async function fetchReceipt() {
         cart,
     });
     if (!data.ok) {
-        alert(data.error || "Unable to build the receipt.");
+        showNotice(data.error || "Unable to build the receipt.");
         return null;
     }
+    clearNotice();
     return data.body;
 }
 
@@ -230,12 +278,22 @@ function onClear() {
     $$(".qty").forEach((el) => (el.value = "0"));
 
     $$("output").forEach((el) => (el.textContent = "₱0.00"));
+    clearAllInvalid();
+    clearNotice();
     closeModal();
 }
 
 /* ---------- wire everything up ---------- */
 document.addEventListener("DOMContentLoaded", () => {
     wireQtyValidation();
+
+    // Clear a field's red highlight (and the notice) as soon as the user types.
+    CUSTOMER_FIELDS.forEach((id) => {
+        $("#" + id).addEventListener("input", () => {
+            setInvalid($("#" + id), false);
+            clearNotice();
+        });
+    });
 
     $("#btnFind").addEventListener("click", onFind);
     $("#btnTotal").addEventListener("click", computeBill);

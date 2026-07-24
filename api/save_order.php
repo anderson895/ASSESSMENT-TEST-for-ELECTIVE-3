@@ -18,6 +18,18 @@ if (!is_array($cart) || count($cart) === 0) {
     json_response(['ok' => false, 'error' => 'Nothing to bill. Enter at least one quantity.'], 422);
 }
 
+// Require real customer details so we never store blank "Walk-in Customer" rows.
+// Order Number is entered manually (per the given design / sample layout).
+$custName    = trim((string) ($cust['name'] ?? ''));
+$custContact = trim((string) ($cust['contact'] ?? ''));
+$custOrderNo = trim((string) ($cust['order_number'] ?? ''));
+if ($custName === '' || $custContact === '' || $custOrderNo === '') {
+    json_response([
+        'ok'    => false,
+        'error' => 'Please enter the Customer Name, Contact Number, and Order Number before billing.',
+    ], 422);
+}
+
 $pdo = db();
 
 $product = new Product($pdo);

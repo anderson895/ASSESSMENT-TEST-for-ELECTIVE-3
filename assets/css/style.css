@@ -125,6 +125,30 @@ input:focus {
 
 .hint { font-size: .8rem; color: #8a5a70; margin: 12px 0 0; }
 
+/* ---------- Inline validation ---------- */
+input.invalid {
+    border-color: #e53935 !important;
+    background: #fff5f5;
+    box-shadow: 0 0 0 3px rgba(229,57,53,.15);
+}
+.form-notice {
+    text-align: center;
+    font-size: .9rem;
+    font-weight: 600;
+    color: #c62828;
+    min-height: 1.2em;
+    margin: 0 0 12px;
+}
+.form-notice.ok { color: #1b7a3d; }
+.form-notice:empty { min-height: 0; margin: 0; }
+@keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-5px); }
+    40%, 60% { transform: translateX(5px); }
+}
+.shake { animation: shake .4s; }
+
 /* ---------- Product categories ---------- */
 .categories {
     display: grid;

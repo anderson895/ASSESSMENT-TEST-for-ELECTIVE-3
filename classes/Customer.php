@@ -49,17 +49,21 @@ class Customer
         $contact = trim($contact);
         $orderNo = trim($orderNo);
 
-        // If no order number was supplied, generate one.
-        if ($orderNo === '') {
-            $orderNo = 'ORD-' . str_pad((string) random_int(1000, 999999), 4, '0', STR_PAD_LEFT);
+        // Reuse an existing customer: match by order number first, then by
+        // contact number, so we never create duplicate rows for the same person.
+        $existing = null;
+        if ($orderNo !== '') {
+            $existing = $this->find($orderNo);
         }
-
-        // Reuse an existing customer with the same order number.
-        $existing = $this->find($orderNo);
+        if (!$existing && $contact !== '') {
+            $existing = $this->find($contact);
+        }
         if ($existing) {
             return (int) $existing['customer_id'];
         }
 
+        // Brand-new customer. The order number is supplied manually by the user
+        // (validated as required in api/save_order.php before we reach here).
         $sql = "INSERT INTO customers (customer_name, contact_number, order_number)
                 VALUES (:name, :contact, :orderNo)";
         $stmt = $this->db->prepare($sql);

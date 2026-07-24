@@ -68,7 +68,9 @@ function h(string $s): string
                 <button type="button" class="btn" id="btnFind">Find</button>
             </div>
         </div>
-        <p class="hint">Search an existing customer by <strong>Contact Number</strong> or <strong>Order Number</strong>.</p>
+        <p class="hint"><strong>Find</strong> an existing customer by Contact Number or Order Number.
+           For billing, enter the <strong>Customer Name</strong>, <strong>Contact Number</strong>,
+           and <strong>Order Number</strong> (all required).</p>
     </section>
 
     <!-- ===================== PRODUCT CATEGORIES ===================== -->
@@ -102,12 +104,15 @@ function h(string $s): string
     </section>
 
     <!-- ===================== BUTTONS ===================== -->
-    <section class="card button-bar">
-        <button type="button" class="btn" id="btnTotal">Total</button>
-        <button type="button" class="btn" id="btnBill">Bill</button>
-        <button type="button" class="btn" id="btnEmail">E-Mail</button>
-        <button type="button" class="btn" id="btnPrint">Print</button>
-        <button type="button" class="btn btn-ghost" id="btnClear">Clear</button>
+    <section class="card">
+        <p class="form-notice" id="formNotice"></p>
+        <div class="button-bar">
+            <button type="button" class="btn" id="btnTotal">Total</button>
+            <button type="button" class="btn" id="btnBill">Bill</button>
+            <button type="button" class="btn" id="btnEmail">E-Mail</button>
+            <button type="button" class="btn" id="btnPrint">Print</button>
+            <button type="button" class="btn btn-ghost" id="btnClear">Clear</button>
+        </div>
     </section>
 
     <!-- ===================== BILL TRANSACTIONS ===================== -->
