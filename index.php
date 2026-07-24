@@ -26,13 +26,19 @@ function h(string $s): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Billing System</title>
+    <title>MRA — Online Billing System</title>
+    <link rel="icon" type="image/png" href="assets/img/logo.png">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
 <header class="app-header">
-    <h1>ONLINE BILLING SYSTEM</h1>
+    <img src="assets/img/logo.png" alt="MRA logo" class="app-logo"
+         onerror="this.style.display='none'">
+    <div class="app-title">
+        <h1>ONLINE BILLING SYSTEM</h1>
+        <p class="app-sub">Mika &bull; Ricky &bull; Angeline</p>
+    </div>
 </header>
 
 <main class="container">
@@ -80,7 +86,8 @@ function h(string $s): string
                             <td><?= h($p['product_name']) ?></td>
                             <td class="price">₱<?= number_format((float) $p['price'], 2) ?></td>
                             <td>
-                                <input type="number" min="0" step="1" value="0"
+                                <input type="number" min="0" max="9999" step="1" value="0"
+                                       inputmode="numeric" pattern="[0-9]*"
                                        class="qty"
                                        data-product-id="<?= (int) $p['product_id'] ?>"
                                        data-category="<?= h($p['category']) ?>"
@@ -131,13 +138,35 @@ function h(string $s): string
         </div>
     </section>
 
-    <!-- ===================== EMAIL / RECEIPT OUTPUT ===================== -->
-    <section class="card hidden" id="outputCard">
-        <h2 class="card-title" id="outputTitle">Billing Details</h2>
-        <pre id="outputBody" class="receipt"></pre>
-    </section>
 
 </main>
+
+<!-- ===================== RECEIPT POP-UP (Print / E-Mail) ===================== -->
+<div class="modal-overlay hidden" id="receiptModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+        <div class="modal-head">
+            <h2 id="modalTitle" class="card-title">Receipt Preview</h2>
+            <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+        </div>
+
+        <pre id="modalBody" class="receipt"></pre>
+
+        <!-- E-Mail controls (shown only in e-mail mode) -->
+        <div class="modal-email hidden" id="emailControls">
+            <label for="emailTo">Send to e-mail address</label>
+            <div class="email-row">
+                <input type="email" id="emailTo" placeholder="customer@email.com">
+                <button type="button" class="btn" id="btnSendEmail">Send</button>
+            </div>
+            <p class="email-status" id="emailStatus"></p>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn" id="modalPrint">Print</button>
+            <button type="button" class="btn btn-ghost" id="modalDone">Close</button>
+        </div>
+    </div>
+</div>
 
 <script src="assets/js/app.js"></script>
 </body>

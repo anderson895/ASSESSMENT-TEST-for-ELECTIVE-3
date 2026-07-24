@@ -28,6 +28,7 @@ $peso = fn ($n) => 'PHP ' . number_format((float) $n, 2);
 $lines = [];
 $lines[] = '=====================================';
 $lines[] = '        ONLINE BILLING SYSTEM';
+$lines[] = '      Mika . Ricky . Angeline';
 $lines[] = '=====================================';
 $lines[] = 'Customer : ' . ($cust['name'] ?? 'Walk-in Customer');
 $lines[] = 'Contact  : ' . ($cust['contact'] ?? '-');

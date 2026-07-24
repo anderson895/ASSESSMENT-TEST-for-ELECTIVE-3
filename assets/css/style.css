@@ -34,14 +34,37 @@ body {
 .app-header {
     background: var(--header);
     color: #fff;
-    text-align: center;
-    padding: 18px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 14px 12px;
     box-shadow: 0 2px 6px rgba(0,0,0,.15);
 }
+.app-logo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #fff;
+    padding: 3px;
+    object-fit: cover;
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.app-title { text-align: left; }
 .app-header h1 {
     margin: 0;
     letter-spacing: 2px;
     font-size: 1.6rem;
+}
+.app-sub {
+    margin: 2px 0 0;
+    font-size: .8rem;
+    letter-spacing: 1px;
+    opacity: .9;
+}
+@media (max-width: 560px) {
+    .app-logo { width: 46px; height: 46px; }
+    .app-title { text-align: center; }
 }
 
 /* ---------- Layout ---------- */
@@ -198,6 +221,75 @@ input:focus {
     color: var(--text);
 }
 
+/* ---------- Receipt pop-up modal ---------- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(60, 10, 30, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+.modal {
+    background: var(--card);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 22px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.3);
+    animation: modal-in .18s ease;
+}
+@keyframes modal-in {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.modal-head .card-title { margin: 0; border: none; padding: 0; }
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    line-height: 1;
+    color: var(--header);
+    cursor: pointer;
+    padding: 0 4px;
+}
+.modal-close:hover { color: var(--btn-hover); }
+.modal .receipt { margin: 14px 0; }
+
+.modal-email {
+    border-top: 1px dashed var(--border);
+    padding-top: 14px;
+    margin-bottom: 6px;
+}
+.modal-email label {
+    display: block;
+    font-weight: 600;
+    font-size: .85rem;
+    margin-bottom: 6px;
+}
+.email-row { display: flex; gap: 10px; }
+.email-row input { flex: 1; }
+.email-status { font-size: .82rem; margin: 10px 0 0; }
+.email-status.ok   { color: #1b7a3d; }
+.email-status.warn { color: #a06b12; }
+.email-status.err  { color: #a01247; }
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+}
+
 /* ---------- Misc ---------- */
 .alert {
     background: #fdecef;
@@ -208,7 +300,8 @@ input:focus {
     margin-bottom: 20px;
     font-size: .9rem;
 }
-.hidden { display: none; }
+.hidden { display: none !important; }
+body.modal-open { overflow: hidden; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
@@ -216,14 +309,49 @@ input:focus {
     .bill-grid { grid-template-columns: 1fr; }
     .customer-grid { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 560px) {
+    .customer-grid { grid-template-columns: 1fr; }
+    .app-header h1 { font-size: 1.25rem; }
+    .btn { padding: 11px 18px; }
+    .email-row { flex-direction: column; }
+}
 
-/* ---------- Print ---------- */
+/* ---------- Print: show ONLY the receipt (single page) ---------- */
 @media print {
-    .app-header { background: var(--header) !important; -webkit-print-color-adjust: exact; }
-    .button-bar,
-    .customer-grid .find-wrap,
-    .hint,
-    #outputCard { display: none !important; }
+    @page { margin: 12mm; }
     body { background: #fff; }
-    .card { box-shadow: none; page-break-inside: avoid; }
+
+    /* Hide the whole app so it does not generate blank pages. */
+    .app-header,
+    main.container { display: none !important; }
+
+    /* Let the receipt flow normally at the top -> one page only. */
+    #receiptModal.modal-overlay {
+        position: static;
+        display: block !important;
+        padding: 0;
+        background: #fff;
+    }
+    .modal {
+        box-shadow: none;
+        max-width: 100%;
+        max-height: none;
+        overflow: visible;
+        animation: none;
+        margin: 0;
+        padding: 0;
+    }
+    .modal .receipt {
+        border: none;
+        background: #fff;
+        font-size: .95rem;
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    /* Drop the on-screen chrome from the printout. */
+    .modal-head,
+    .modal-close,
+    .modal-actions,
+    .modal-email { display: none !important; }
 }

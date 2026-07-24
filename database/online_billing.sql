@@ -89,6 +89,13 @@ INSERT INTO products (category, product_name, price) VALUES
 
 -- Sample customers (for testing the Find button)
 INSERT INTO customers (customer_name, contact_number, order_number) VALUES
-('Ricky Diestro',  '09171234567', 'ORD-1001'),
-('Maria Santos',   '09209876543', 'ORD-1002'),
-('Juan Dela Cruz', '09331112222', 'ORD-1003');
+('Sophia Reyes',      '09171234567', 'ORD-1001'),
+('Emma Santos',       '09182345678', 'ORD-1002'),
+('Olivia Cruz',       '09193456789', 'ORD-1003'),
+('Isabella Garcia',   '09214567890', 'ORD-1004'),
+('Mia Flores',        '09225678901', 'ORD-1005'),
+('Charlotte Mendoza', '09236789012', 'ORD-1006'),
+('Ava Ramos',         '09247890123', 'ORD-1007'),
+('Amelia Torres',     '09258901234', 'ORD-1008'),
+('Harper Villanueva', '09269012345', 'ORD-1009'),
+('Ella Navarro',      '09270123456', 'ORD-1010');
