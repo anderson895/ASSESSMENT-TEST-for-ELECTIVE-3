@@ -1,120 +1,197 @@
 <?php
 /**
  * Bill.php
- * Core billing logic (OOP). Computes category totals, per-category taxes
- * (double / float), subtotal, total tax and grand total.
+ * -----------------------------------------------------------------
+ * Ito ang class na gumagawa ng lahat ng KOMPUTASYON:
+ *   - total ng bawat kategorya
+ *   - buwis (tax) ng bawat kategorya
+ *   - subtotal, total tax, at grand total
  *
- * Tax rates are declared as float constants to satisfy the requirement that
- * taxes use a double / float data type.
+ * Ang mga tax rate ay DOUBLE / FLOAT na data type,
+ * ayon sa hinihingi ng instruction (BILL TRANSACTIONS).
+ * -----------------------------------------------------------------
  */
 class Bill
 {
-    /** Per-category tax rates (float). */
-    public const TAX_RATES = [
-        'Beauty & Personal Care' => 0.12,  // 12%
-        'Grocery'                => 0.02,  //  2%
-        'Beverages'              => 0.05,  //  5%
-    ];
+    // Tax rate ng bawat kategorya (double / float na halaga).
+    const TAX_BEAUTY    = 0.12;   // 12%
+    const TAX_GROCERY   = 0.02;   //  2%
+    const TAX_BEVERAGES = 0.05;   //  5%
 
-    private array $priceMap;   // product_id => price
-    private array $items = []; // computed line items
+    private $priceList = array();   // presyo ng bawat produkto
+    private $items     = array();   // mga binili (may quantity)
 
-    public function __construct(array $priceMap)
+    /**
+     * Constructor - kailangan ng listahan ng presyo galing sa Product class.
+     */
+    public function __construct($priceList)
     {
-        $this->priceMap = $priceMap;
+        $this->priceList = $priceList;
     }
 
     /**
-     * Feed the bill with the raw cart:
-     *   $cart = [ ['product_id'=>1,'category'=>'Grocery','quantity'=>2], ... ]
-     * Only positive integer quantities are kept.
+     * Ibalik ang tax rate ng isang kategorya.
      */
-    public function load(array $cart): void
+    public function taxRate($category)
     {
-        $this->items = [];
-        foreach ($cart as $line) {
-            $pid = (int) ($line['product_id'] ?? 0);
-            $qty = (int) ($line['quantity'] ?? 0);
-            $cat = (string) ($line['category'] ?? '');
+        if ($category == 'Beauty & Personal Care') {
+            return self::TAX_BEAUTY;
+        }
+        if ($category == 'Grocery') {
+            return self::TAX_GROCERY;
+        }
+        if ($category == 'Beverages') {
+            return self::TAX_BEVERAGES;
+        }
+        return 0.0;   // hindi kilalang kategorya
+    }
 
-            if ($pid <= 0 || $qty <= 0 || !isset($this->priceMap[$pid])) {
+    /**
+     * Ilagay sa bill ang mga binili ng customer.
+     * Ang $cart ay galing sa webpage, halimbawa:
+     *   [ ['product_id' => 1, 'category' => 'Grocery', 'quantity' => 2], ... ]
+     *
+     * Ang quantity ay INTEGER, at ang tinatanggap lang ay mas malaki sa 0.
+     */
+    public function load($cart)
+    {
+        $this->items = array();
+
+        foreach ($cart as $line) {
+            $productId = (int) $line['product_id'];
+            $quantity  = (int) $line['quantity'];
+            $category  = $line['category'];
+
+            // Laktawan ang walang laman o maling item.
+            if ($productId <= 0 || $quantity <= 0) {
+                continue;
+            }
+            if (!isset($this->priceList[$productId])) {
                 continue;
             }
 
-            $price = (float) $this->priceMap[$pid];
-            $this->items[] = [
-                'product_id' => $pid,
-                'category'   => $cat,
-                'quantity'   => $qty,
-                'price'      => $price,
-                'total_price'=> round($price * $qty, 2),
-            ];
+            $price = (float) $this->priceList[$productId];
+            $total = $price * $quantity;
+
+            // Itago ang detalye ng bawat binili.
+            $this->items[] = array(
+                'product_id'  => $productId,
+                'category'    => $category,
+                'quantity'    => $quantity,
+                'price'       => $price,
+                'total_price' => round($total, 2)
+            );
         }
     }
 
     /**
-     * Category totals => [ 'Grocery' => 250.00, ... ]
-     * Every known category is returned (0.00 when empty).
+     * TOTAL NG BAWAT KATEGORYA.
+     * Halimbawa: [ 'Grocery' => 250.00, 'Beverages' => 60.00, ... ]
      */
-    public function categoryTotals(): array
+    public function categoryTotals()
     {
-        $totals = array_fill_keys(array_keys(self::TAX_RATES), 0.00);
+        // Simulan sa 0.00 ang tatlong kategorya.
+        $totals = array(
+            'Beauty & Personal Care' => 0.00,
+            'Grocery'                => 0.00,
+            'Beverages'              => 0.00
+        );
+
+        // Idagdag ang halaga ng bawat binili sa tamang kategorya.
         foreach ($this->items as $item) {
-            $cat = $item['category'];
-            if (!isset($totals[$cat])) {
-                $totals[$cat] = 0.00;
+            $category = $item['category'];
+
+            if (!isset($totals[$category])) {
+                $totals[$category] = 0.00;
             }
-            $totals[$cat] += $item['total_price'];
+            $totals[$category] = $totals[$category] + $item['total_price'];
         }
-        return array_map(fn ($v) => round($v, 2), $totals);
+
+        // I-round sa 2 decimal places.
+        foreach ($totals as $category => $amount) {
+            $totals[$category] = round($amount, 2);
+        }
+
+        return $totals;
     }
 
     /**
-     * Per-category taxes (float) => [ 'Grocery' => 5.00, ... ]
+     * BUWIS NG BAWAT KATEGORYA.
+     * Formula: total ng kategorya x tax rate
      */
-    public function categoryTaxes(): array
+    public function categoryTaxes()
     {
-        $taxes = [];
-        foreach ($this->categoryTotals() as $cat => $total) {
-            $rate = self::TAX_RATES[$cat] ?? 0.0;
-            $taxes[$cat] = round($total * $rate, 2);
+        $taxes = array();
+
+        foreach ($this->categoryTotals() as $category => $total) {
+            $rate             = $this->taxRate($category);
+            $taxes[$category] = round($total * $rate, 2);
         }
+
         return $taxes;
     }
 
-    public function subtotal(): float
+    /**
+     * SUBTOTAL = kabuuan ng lahat ng kategorya (wala pang buwis).
+     */
+    public function subtotal()
     {
-        return round(array_sum($this->categoryTotals()), 2);
+        $sum = 0.00;
+
+        foreach ($this->categoryTotals() as $total) {
+            $sum = $sum + $total;
+        }
+
+        return round($sum, 2);
     }
 
-    public function totalTax(): float
+    /**
+     * TOTAL TAX = kabuuan ng lahat ng buwis.
+     */
+    public function totalTax()
     {
-        return round(array_sum($this->categoryTaxes()), 2);
+        $sum = 0.00;
+
+        foreach ($this->categoryTaxes() as $tax) {
+            $sum = $sum + $tax;
+        }
+
+        return round($sum, 2);
     }
 
-    public function grandTotal(): float
+    /**
+     * GRAND TOTAL = subtotal + total tax
+     */
+    public function grandTotal()
     {
         return round($this->subtotal() + $this->totalTax(), 2);
     }
 
-    public function items(): array
+    /**
+     * Ibalik ang listahan ng mga binili.
+     */
+    public function items()
     {
         return $this->items;
     }
 
     /**
-     * Full summary payload for the frontend / receipt.
+     * Buong resulta ng komputasyon - ipapadala sa webpage at resibo.
      */
-    public function summary(): array
+    public function summary()
     {
-        return [
+        return array(
             'category_totals' => $this->categoryTotals(),
             'category_taxes'  => $this->categoryTaxes(),
-            'tax_rates'       => self::TAX_RATES,
-            'subtotal'        => $this->subtotal(),
-            'total_tax'       => $this->totalTax(),
-            'grand_total'     => $this->grandTotal(),
-            'items'           => $this->items,
-        ];
+            'tax_rates'       => array(
+                'Beauty & Personal Care' => self::TAX_BEAUTY,
+                'Grocery'                => self::TAX_GROCERY,
+                'Beverages'              => self::TAX_BEVERAGES
+            ),
+            'subtotal'    => $this->subtotal(),
+            'total_tax'   => $this->totalTax(),
+            'grand_total' => $this->grandTotal(),
+            'items'       => $this->items
+        );
     }
 }

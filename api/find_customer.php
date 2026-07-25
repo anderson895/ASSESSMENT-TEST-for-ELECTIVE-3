@@ -1,22 +1,43 @@
 <?php
 /**
  * api/find_customer.php
- * POST { "keyword": "<contact or order number>" }
- * -> Looks up a customer by Contact Number OR Order Number (Find button).
+ * -----------------------------------------------------------------
+ * Ginagamit ito ng FIND button.
+ * Tumatanggap ng Contact Number o Order Number, tapos hinahanap
+ * ang customer sa database.
+ * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
 
+// Kunin ang hinahanap mula sa webpage.
 $input   = json_input();
-$keyword = trim((string) ($input['keyword'] ?? ''));
-
-if ($keyword === '') {
-    json_response(['ok' => false, 'error' => 'Please enter a Contact Number or Order Number.'], 422);
+$keyword = '';
+if (isset($input['keyword'])) {
+    $keyword = trim($input['keyword']);
 }
 
-$customer = (new Customer(db()))->find($keyword);
-
-if (!$customer) {
-    json_response(['ok' => false, 'error' => 'No customer found for "' . $keyword . '".'], 404);
+// Wala palang inilagay.
+if ($keyword == '') {
+    json_response(array(
+        'ok'    => false,
+        'error' => 'Please enter a Contact Number or Order Number.'
+    ), 422);
 }
 
-json_response(['ok' => true, 'customer' => $customer]);
+// Hanapin ang customer gamit ang Customer class.
+$customerModel = new Customer(db());
+$customer      = $customerModel->find($keyword);
+
+// Walang nakita.
+if ($customer == null) {
+    json_response(array(
+        'ok'    => false,
+        'error' => 'No customer found for "' . $keyword . '".'
+    ), 404);
+}
+
+// May nakita - ibalik ang impormasyon niya.
+json_response(array(
+    'ok'       => true,
+    'customer' => $customer
+));

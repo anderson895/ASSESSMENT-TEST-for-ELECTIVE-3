@@ -1,60 +1,83 @@
 <?php
 /**
  * api/save_order.php
- * POST {
- *   "customer": { "name", "contact", "order_number" },
- *   "cart": [ {product_id, category, quantity}, ... ]
- * }
- * -> Saves the customer (if new) + order + order_items, then returns the
- *    persisted order id and bill summary. Used by the Bill / Print flow.
+ * -----------------------------------------------------------------
+ * Ginagamit ito ng BILL button.
+ * Kinakalkula ang bill AT sini-save ang order sa database.
+ * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
 
-$input    = json_input();
-$cust     = $input['customer'] ?? [];
-$cart     = $input['cart'] ?? [];
+// ---- Kunin ang datos mula sa webpage ----
+$input = json_input();
 
-if (!is_array($cart) || count($cart) === 0) {
-    json_response(['ok' => false, 'error' => 'Nothing to bill. Enter at least one quantity.'], 422);
+$customer = array();
+if (isset($input['customer'])) {
+    $customer = $input['customer'];
 }
 
-// Require real customer details so we never store blank "Walk-in Customer" rows.
-// Order Number is entered manually (per the given design / sample layout).
-$custName    = trim((string) ($cust['name'] ?? ''));
-$custContact = trim((string) ($cust['contact'] ?? ''));
-$custOrderNo = trim((string) ($cust['order_number'] ?? ''));
-if ($custName === '' || $custContact === '' || $custOrderNo === '') {
-    json_response([
+$cart = array();
+if (isset($input['cart'])) {
+    $cart = $input['cart'];
+}
+
+// ---- Dapat may binili man lang ----
+if (!is_array($cart) || count($cart) == 0) {
+    json_response(array(
         'ok'    => false,
-        'error' => 'Please enter the Customer Name, Contact Number, and Order Number before billing.',
-    ], 422);
+        'error' => 'Nothing to bill. Enter at least one quantity.'
+    ), 422);
+}
+
+// ---- Kunin ang detalye ng customer ----
+$name    = '';
+$contact = '';
+$orderNo = '';
+
+if (isset($customer['name']))         { $name    = trim($customer['name']); }
+if (isset($customer['contact']))      { $contact = trim($customer['contact']); }
+if (isset($customer['order_number'])) { $orderNo = trim($customer['order_number']); }
+
+// Kailangang kompleto ang tatlo. Ang Order Number ay manu-manong inilalagay.
+if ($name == '' || $contact == '' || $orderNo == '') {
+    json_response(array(
+        'ok'    => false,
+        'error' => 'Please enter the Customer Name, Contact Number, and Order Number before billing.'
+    ), 422);
 }
 
 $pdo = db();
 
-$product = new Product($pdo);
-$bill    = new Bill($product->priceMap());
+// ---- 1) Kalkulahin ang bill ----
+$productModel = new Product($pdo);
+$bill         = new Bill($productModel->priceMap());
 $bill->load($cart);
 
 if ($bill->grandTotal() <= 0) {
-    json_response(['ok' => false, 'error' => 'All quantities are zero.'], 422);
+    json_response(array(
+        'ok'    => false,
+        'error' => 'All quantities are zero.'
+    ), 422);
 }
 
-// Save / reuse the customer.
+// ---- 2) I-save ang customer (o gamitin ang dati niyang record) ----
 $customerModel = new Customer($pdo);
-$customerId = $customerModel->save(
-    (string) ($cust['name'] ?? ''),
-    (string) ($cust['contact'] ?? ''),
-    (string) ($cust['order_number'] ?? '')
-);
 
-// Persist the order.
+try {
+    $customerId = $customerModel->save($name, $contact, $orderNo);
+} catch (RuntimeException $e) {
+    // Halimbawa: gamit na ng ibang tao ang Order Number.
+    json_response(array('ok' => false, 'error' => $e->getMessage()), 409);
+}
+
+// ---- 3) I-save ang order ----
 $orderModel = new Order($pdo);
-$orderId = $orderModel->save($customerId, $bill);
+$orderId    = $orderModel->save($customerId, $bill);
 
-json_response([
+// ---- 4) Ibalik ang resulta sa webpage ----
+json_response(array(
     'ok'          => true,
     'order_id'    => $orderId,
     'customer_id' => $customerId,
-    'summary'     => $bill->summary(),
-]);
+    'summary'     => $bill->summary()
+));

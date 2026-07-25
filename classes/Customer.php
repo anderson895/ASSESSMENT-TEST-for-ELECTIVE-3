@@ -1,30 +1,31 @@
 <?php
 /**
  * Customer.php
- * Encapsulates all customer-related data access (OOP model).
+ * -----------------------------------------------------------------
+ * Class para sa customer. Dito ginagawa ang paghahanap (Find button)
+ * at ang pag-save ng customer sa database.
+ * -----------------------------------------------------------------
  */
 class Customer
 {
-    private PDO $db;
+    private $db;   // koneksyon sa database
 
-    public int $customer_id = 0;
-    public string $customer_name = '';
-    public string $contact_number = '';
-    public string $order_number = '';
-
-    public function __construct(PDO $db)
+    public function __construct($db)
     {
         $this->db = $db;
     }
 
     /**
-     * Find a customer by Contact Number OR Order Number.
-     * Returns the customer row as an associative array, or null if not found.
+     * FIND BUTTON.
+     * Hinahanap ang customer gamit ang Contact Number O Order Number.
+     * Kapag nakita, ibabalik ang buong impormasyon niya.
+     * Kapag wala, ibabalik ang null.
      */
-    public function find(string $keyword): ?array
+    public function find($keyword)
     {
         $keyword = trim($keyword);
-        if ($keyword === '') {
+
+        if ($keyword == '') {
             return null;
         }
 
@@ -32,47 +33,128 @@ class Customer
                 FROM customers
                 WHERE contact_number = :contact OR order_number = :orderNo
                 LIMIT 1";
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([':contact' => $keyword, ':orderNo' => $keyword]);
+        $stmt->execute(array(
+            ':contact' => $keyword,
+            ':orderNo' => $keyword
+        ));
+
         $row = $stmt->fetch();
 
-        return $row ?: null;
+        if ($row == false) {
+            return null;   // walang nakitang customer
+        }
+        return $row;
     }
 
     /**
-     * Persist a customer. If the order_number already exists, reuse that record.
-     * Returns the customer_id.
+     * Hanapin ang EKSAKTONG parehong tao.
+     * Dapat magkatugma ang PANGALAN at ang CONTACT NUMBER.
+     *
+     * Bakit pareho? Kasi maaaring magkapamilya ang gumagamit ng iisang
+     * numero. Kung contact number lang ang titingnan, mapupunta ang bill
+     * sa maling tao.
      */
-    public function save(string $name, string $contact, string $orderNo): int
+    public function findByNameAndContact($name, $contact)
+    {
+        $name    = trim($name);
+        $contact = trim($contact);
+
+        if ($name == '' || $contact == '') {
+            return null;
+        }
+
+        $sql = "SELECT customer_id, customer_name, contact_number, order_number
+                FROM customers
+                WHERE LOWER(customer_name) = LOWER(:name)
+                  AND contact_number = :contact
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(
+            ':name'    => $name,
+            ':contact' => $contact
+        ));
+
+        $row = $stmt->fetch();
+
+        if ($row == false) {
+            return null;
+        }
+        return $row;
+    }
+
+    /**
+     * Hanapin ang customer gamit ang Order Number lamang.
+     * Ginagamit para malaman kung may ibang gumamit na ng order number.
+     */
+    public function findByOrderNumber($orderNo)
+    {
+        $orderNo = trim($orderNo);
+
+        if ($orderNo == '') {
+            return null;
+        }
+
+        $sql = "SELECT customer_id, customer_name, contact_number, order_number
+                FROM customers
+                WHERE order_number = :orderNo
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(':orderNo' => $orderNo));
+
+        $row = $stmt->fetch();
+
+        if ($row == false) {
+            return null;
+        }
+        return $row;
+    }
+
+    /**
+     * I-save ang customer at ibalik ang customer_id.
+     *
+     * Paano ito gumagana:
+     *   1. Kung dati na siyang customer (parehong pangalan at contact),
+     *      gagamitin ang lumang record - walang duplicate.
+     *   2. Kung bagong tao, dapat hindi pa gamit ang Order Number.
+     *   3. Kung malinis, isasave siya bilang bagong customer.
+     */
+    public function save($name, $contact, $orderNo)
     {
         $name    = trim($name);
         $contact = trim($contact);
         $orderNo = trim($orderNo);
 
-        // Reuse an existing customer: match by order number first, then by
-        // contact number, so we never create duplicate rows for the same person.
-        $existing = null;
-        if ($orderNo !== '') {
-            $existing = $this->find($orderNo);
-        }
-        if (!$existing && $contact !== '') {
-            $existing = $this->find($contact);
-        }
-        if ($existing) {
+        // 1) Dati na bang customer? Gamitin ang lumang record.
+        $existing = $this->findByNameAndContact($name, $contact);
+        if ($existing != null) {
             return (int) $existing['customer_id'];
         }
 
-        // Brand-new customer. The order number is supplied manually by the user
-        // (validated as required in api/save_order.php before we reach here).
+        // 2) Bagong tao - siguraduhing hindi pa gamit ang order number.
+        $owner = $this->findByOrderNumber($orderNo);
+        if ($owner != null) {
+            throw new RuntimeException(
+                'Order Number "' . $orderNo . '" is already used by '
+                . $owner['customer_name'] . '. Please enter a different Order Number.'
+            );
+        }
+
+        // 3) I-save ang bagong customer.
         $sql = "INSERT INTO customers (customer_name, contact_number, order_number)
                 VALUES (:name, :contact, :orderNo)";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
-            ':name'    => $name !== '' ? $name : 'Walk-in Customer',
-            ':contact' => $contact,
-            ':orderNo' => $orderNo,
-        ]);
 
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(
+            ':name'    => $name,
+            ':contact' => $contact,
+            ':orderNo' => $orderNo
+        ));
+
+        // Ibalik ang ID ng bagong naisave na customer.
         return (int) $this->db->lastInsertId();
     }
 }

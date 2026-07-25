@@ -1,39 +1,47 @@
 <?php
 /**
  * Database.php
- * Object-Oriented PDO connection handler for the Online Billing System.
- * Adjust the credentials below to match your XAMPP MySQL setup.
+ * -----------------------------------------------------------------
+ * Ito ang class na nag-uugnay sa PHP at sa MySQL database.
+ * Ginagamit natin ang PDO dahil ito ang ligtas na paraan
+ * (protektado laban sa SQL injection).
+ * -----------------------------------------------------------------
  */
 class Database
 {
-    private string $host = 'localhost';
-    private string $dbName = 'online_billing';
-    private string $username = 'root';
-    private string $password = '';      // default XAMPP MySQL password is empty
-    private string $charset = 'utf8mb4';
+    // ---- Mga setting ng koneksyon (palitan kung iba ang XAMPP mo) ----
+    private $host     = 'localhost';
+    private $dbName   = 'online_billing';
+    private $username = 'root';
+    private $password = '';        // walang password ang default na XAMPP
 
-    private ?PDO $connection = null;
+    // Dito itatago ang koneksyon para hindi paulit-ulit gumawa ng bago.
+    private $connection = null;
 
     /**
-     * Return a singleton-style PDO connection.
+     * Ibinabalik ang koneksyon sa database.
      */
-    public function connect(): PDO
+    public function connect()
     {
-        if ($this->connection instanceof PDO) {
+        // Kung may koneksyon na, gamitin na lang ulit iyon.
+        if ($this->connection != null) {
             return $this->connection;
         }
 
-        $dsn = "mysql:host={$this->host};dbname={$this->dbName};charset={$this->charset}";
-        $options = [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ];
+        // Ito ang "address" ng database na kokonektahan natin.
+        $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->dbName . ";charset=utf8mb4";
 
         try {
-            $this->connection = new PDO($dsn, $this->username, $this->password, $options);
+            $this->connection = new PDO($dsn, $this->username, $this->password);
+
+            // Kapag may mali, magpapakita ng error (hindi tahimik lang).
+            $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+            // Ang resulta ng query ay gagawing associative array: $row['column_name']
+            $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            throw new RuntimeException('Database connection failed: ' . $e->getMessage());
+            // Kapag hindi makakonekta, ipaalam kung bakit.
+            throw new RuntimeException('Hindi makakonekta sa database: ' . $e->getMessage());
         }
 
         return $this->connection;

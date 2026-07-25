@@ -1,21 +1,35 @@
 <?php
 /**
  * api/calculate.php
- * POST { "cart": [ {product_id, category, quantity}, ... ] }
- * -> Returns the full bill summary (category totals, taxes, subtotal,
- *    total tax, grand total). Backs both the Total and Bill buttons.
+ * -----------------------------------------------------------------
+ * Ginagamit ito ng TOTAL button.
+ * Kinakalkula ang total ng bawat kategorya, buwis, subtotal,
+ * total tax, at grand total. Hindi pa ito nagsi-save sa database.
+ * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
 
+// Kunin ang mga binili mula sa webpage.
 $input = json_input();
-$cart  = $input['cart'] ?? [];
-
-if (!is_array($cart)) {
-    json_response(['ok' => false, 'error' => 'Invalid cart payload.'], 422);
+$cart  = array();
+if (isset($input['cart'])) {
+    $cart = $input['cart'];
 }
 
-$product = new Product(db());
-$bill    = new Bill($product->priceMap());
+if (!is_array($cart)) {
+    json_response(array('ok' => false, 'error' => 'Invalid cart.'), 422);
+}
+
+// 1) Kunin ang presyo ng lahat ng produkto.
+$productModel = new Product(db());
+$priceList    = $productModel->priceMap();
+
+// 2) Ipasa sa Bill class para kalkulahin.
+$bill = new Bill($priceList);
 $bill->load($cart);
 
-json_response(['ok' => true, 'summary' => $bill->summary()]);
+// 3) Ibalik ang resulta sa webpage.
+json_response(array(
+    'ok'      => true,
+    'summary' => $bill->summary()
+));

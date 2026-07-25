@@ -1,24 +1,32 @@
 <?php
 /**
  * index.php
- * Online Billing System - main interface.
- * Renders the product categories from the database and wires the buttons
- * to the OOP PHP API through assets/js/app.js.
+ * -----------------------------------------------------------------
+ * Ito ang pangunahing pahina ng Online Billing System.
+ * Dito ipinapakita ang customer details, ang tatlong kategorya
+ * ng produkto, ang mga button, at ang Bill Transactions.
+ * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/config/bootstrap.php';
 
+// Kunin ang mga produkto mula sa database, naka-grupo ayon sa kategorya.
+$grouped = array();
+$dbError = null;
+
 try {
-    $grouped  = (new Product(db()))->grouped();
-    $dbError  = null;
-} catch (Throwable $e) {
-    $grouped  = [];
-    $dbError  = $e->getMessage();
+    $productModel = new Product(db());
+    $grouped      = $productModel->grouped();
+} catch (Exception $e) {
+    $dbError = $e->getMessage();
 }
 
-/** Escape helper. */
-function h(string $s): string
+/**
+ * Ginagawang ligtas ang teksto bago ipakita sa webpage.
+ * Pumipigil ito sa HTML injection.
+ */
+function h($text)
 {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 }
 ?>
 <!DOCTYPE html>

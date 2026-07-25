@@ -1,50 +1,67 @@
 <?php
 /**
  * Product.php
- * Data access for products, grouped by category.
+ * -----------------------------------------------------------------
+ * Class para sa mga produkto. Dito kinukuha ang listahan ng produkto
+ * mula sa database (products table).
+ * -----------------------------------------------------------------
  */
 class Product
 {
-    private PDO $db;
+    private $db;   // koneksyon sa database
 
-    public function __construct(PDO $db)
+    /**
+     * Constructor - tumatakbo tuwing gagawa ng bagong Product object.
+     */
+    public function __construct($db)
     {
         $this->db = $db;
     }
 
     /**
-     * Return every product ordered by category then name.
+     * Kunin ang LAHAT ng produkto, naka-ayos ayon sa kategorya.
      */
-    public function all(): array
+    public function all()
     {
         $sql = "SELECT product_id, category, product_name, price
                 FROM products
                 ORDER BY category, product_id";
-        return $this->db->query($sql)->fetchAll();
+
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
     }
 
     /**
-     * Return products grouped into an associative array keyed by category:
-     *   [ 'Grocery' => [ {product}, {product} ], ... ]
+     * Pagpangkat-pangkatin ang produkto ayon sa kategorya.
+     * Halimbawa ng ibabalik:
+     *   [ 'Grocery' => [ Rice, Eggs, ... ], 'Beverages' => [ ... ] ]
      */
-    public function grouped(): array
+    public function grouped()
     {
-        $grouped = [];
+        $grouped = array();
+
         foreach ($this->all() as $product) {
-            $grouped[$product['category']][] = $product;
+            $category = $product['category'];
+            $grouped[$category][] = $product;
         }
+
         return $grouped;
     }
 
     /**
-     * Return a price lookup map keyed by product_id.
+     * Gumawa ng listahan ng presyo kung saan ang susi ay product_id.
+     * Halimbawa: [ 1 => 149.75, 2 => 129.50, ... ]
+     * Ginagamit ito ng Bill class para malaman ang presyo ng bawat item.
      */
-    public function priceMap(): array
+    public function priceMap()
     {
-        $map = [];
+        $prices = array();
+
         foreach ($this->all() as $product) {
-            $map[(int) $product['product_id']] = (float) $product['price'];
+            $id            = (int) $product['product_id'];
+            $prices[$id]   = (float) $product['price'];
         }
-        return $map;
+
+        return $prices;
     }
 }
