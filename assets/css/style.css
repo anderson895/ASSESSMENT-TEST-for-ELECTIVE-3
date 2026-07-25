@@ -104,7 +104,8 @@ body {
     font-size: .85rem;
     gap: 6px;
 }
-.find-wrap { display: flex; }
+.find-wrap { display: flex; gap: 10px; }
+.find-wrap .btn { white-space: nowrap; }
 
 input[type="text"],
 input[type="number"],
