@@ -287,6 +287,38 @@ async function clickFind() {
 }
 
 /**
+ * ADD CUSTOMER BUTTON
+ * Nagreregister ng bagong customer sa database (kahit wala pang bill).
+ */
+async function clickAddCustomer() {
+    const customer = getCustomer();
+
+    // Tingnan kung kompleto ang tatlong field.
+    markInvalid("customerName",  customer.name == "");
+    markInvalid("contactNumber", customer.contact == "");
+    markInvalid("orderNumber",   customer.order_number == "");
+
+    if (customer.name == "" || customer.contact == "" || customer.order_number == "") {
+        showMessage("Please complete Customer Name, Contact Number, and Order Number to add a customer.", "err");
+        return;
+    }
+
+    const result = await sendToServer("api/add_customer.php", {
+        name:         customer.name,
+        contact:      customer.contact,
+        order_number: customer.order_number
+    });
+
+    if (!result.ok) {
+        showMessage(result.error, "err");
+        return;
+    }
+
+    clearHighlights();
+    showMessage("✔ " + result.message + " (Customer #" + result.customer.customer_id + ")", "ok");
+}
+
+/**
  * TOTAL BUTTON
  * Kinakalkula ang total ng bawat kategorya (hindi pa nagse-save).
  */
@@ -550,6 +582,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Ang anim na pangunahing button.
     document.getElementById("btnFind").addEventListener("click", clickFind);
+    document.getElementById("btnAddCustomer").addEventListener("click", clickAddCustomer);
     document.getElementById("btnTotal").addEventListener("click", clickTotal);
     document.getElementById("btnBill").addEventListener("click", clickBill);
     document.getElementById("btnEmail").addEventListener("click", clickEmail);

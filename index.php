@@ -74,10 +74,12 @@ function h($text)
             </label>
             <div class="find-wrap">
                 <button type="button" class="btn" id="btnFind">Find</button>
+                <button type="button" class="btn btn-ghost" id="btnAddCustomer">Add Customer</button>
             </div>
         </div>
         <p class="hint"><strong>Find</strong> an existing customer by Contact Number or Order Number.
-           For billing, enter the <strong>Customer Name</strong>, <strong>Contact Number</strong>,
+           <strong>Add Customer</strong> to register a new one. For billing, enter the
+           <strong>Customer Name</strong>, <strong>Contact Number</strong>,
            and <strong>Order Number</strong> (all required).</p>
     </section>
 
