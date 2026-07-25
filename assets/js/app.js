@@ -425,6 +425,7 @@ async function clickEmail() {
 async function clickSendEmail() {
     const emailBox = document.getElementById("emailTo");
     const status   = document.getElementById("emailStatus");
+    const sendBtn  = document.getElementById("btnSendEmail");
     const address  = emailBox.value.trim();
 
     // Tingnan kung tama ang porma ng e-mail address.
@@ -436,19 +437,34 @@ async function clickSendEmail() {
         return;
     }
 
-    const result = await sendToServer("api/email.php", {
-        to: address,
-        customer: getCustomer(),
-        cart: getCart()
-    });
+    // ---- Ipakita ang loader habang ipinapadala ----
+    sendBtn.disabled  = true;
+    sendBtn.textContent = "Sending...";
+    status.className  = "email-status load";
+    status.innerHTML  = '<span class="email-spinner"></span> Sending receipt to ' + address + " ...";
+
+    let result;
+    try {
+        result = await sendToServer("api/email.php", {
+            to: address,
+            customer: getCustomer(),
+            cart: getCart()
+        });
+    } finally {
+        // Ibalik ang button kahit anong mangyari.
+        sendBtn.disabled    = false;
+        sendBtn.textContent = "Send";
+    }
 
     if (result.ok && result.sent) {
         status.textContent = "✔ Receipt sent to " + result.to;
         status.className   = "email-status ok";
     } else {
-        // Karaniwan itong nangyayari sa XAMPP dahil walang mail server.
-        status.textContent = "Mail server not configured on this server — receipt shown above as preview.";
-        status.className   = "email-status warn";
+        // Ipakita ang tunay na dahilan mula sa SMTP kung meron.
+        status.textContent = result.error
+            ? "Failed to send: " + result.error
+            : "Failed to send the receipt. Please try again.";
+        status.className   = "email-status err";
     }
 }
 

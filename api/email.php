@@ -8,6 +8,10 @@
  * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 /**
  * Gawing pera ang numero. Halimbawa: 149.5 => "PHP 149.50"
@@ -90,20 +94,53 @@ $lines[] = 'Thank you for your purchase!';
 $body = implode("\n", $lines);
 
 // ---- Subukang ipadala kung may e-mail address ----
-$sent = false;
+$sent  = false;
+$error = '';
 
 if ($to != '' && filter_var($to, FILTER_VALIDATE_EMAIL)) {
-    $headers = 'From: billing@onlinebilling.local';
+    // I-load ang SMTP settings (Gmail) mula sa config/mail.php.
+    $mailConfig = require __DIR__ . '/../config/mail.php';
 
-    // Ang mail() ay hindi gumagana sa karaniwang XAMPP dahil walang
-    // mail server. Kapag nabigo, ipapakita na lang ang resibo sa screen.
-    $sent = @mail($to, 'Your Online Billing Receipt', $body, $headers);
+    $mailer = new PHPMailer(true);   // true = magtapon ng exception kapag may error
+
+    try {
+        // ---- SMTP setup ----
+        $mailer->isSMTP();
+        $mailer->Host       = $mailConfig['host'];
+        $mailer->SMTPAuth   = true;
+        $mailer->Username   = $mailConfig['username'];
+        $mailer->Password   = $mailConfig['password'];
+        $mailer->Port       = (int) $mailConfig['port'];
+
+        if ($mailConfig['encryption'] === 'ssl') {
+            $mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mailer->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        }
+
+        // ---- Sino ang nagpadala at sino ang tatanggap ----
+        $mailer->setFrom($mailConfig['from_email'], $mailConfig['from_name']);
+        $mailer->addAddress($to);
+
+        // ---- Nilalaman ng e-mail ----
+        $mailer->Subject = 'Your Online Billing Receipt';
+        // Plain-text ang resibo kaya isa-set natin bilang plain body.
+        $mailer->isHTML(false);
+        $mailer->Body    = $body;
+
+        $mailer->send();
+        $sent = true;
+    } catch (PHPMailerException $e) {
+        // Ibalik ang tunay na dahilan (hal. maling password, walang internet).
+        $error = $mailer->ErrorInfo;
+    }
 }
 
 // ---- Ibalik ang resibo sa webpage ----
 json_response(array(
-    'ok'   => true,
-    'sent' => $sent,
-    'to'   => $to,
-    'body' => $body
+    'ok'    => true,
+    'sent'  => $sent,
+    'to'    => $to,
+    'body'  => $body,
+    'error' => $error
 ));

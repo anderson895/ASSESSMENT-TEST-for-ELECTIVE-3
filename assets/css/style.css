@@ -302,10 +302,29 @@ input.invalid {
 }
 .email-row { display: flex; gap: 10px; }
 .email-row input { flex: 1; }
-.email-status { font-size: .82rem; margin: 10px 0 0; }
+.email-status { font-size: .82rem; margin: 10px 0 0; display: flex; align-items: center; gap: 8px; }
+.email-status:empty { display: none; }
 .email-status.ok   { color: #1b7a3d; }
 .email-status.warn { color: #a06b12; }
 .email-status.err  { color: #a01247; }
+.email-status.load { color: #C2185B; }
+
+/* Umiikot na spinner habang ipinapadala ang e-mail. */
+.email-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid #F8BBD0;
+    border-top-color: #D81B60;
+    border-radius: 50%;
+    animation: email-spin .7s linear infinite;
+    flex: none;
+}
+@keyframes email-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Disabled na Send button habang nagpoproseso. */
+.btn:disabled { opacity: .6; cursor: not-allowed; }
 
 .modal-actions {
     display: flex;
