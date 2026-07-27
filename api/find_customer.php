@@ -5,6 +5,9 @@
  * Ginagamit ito ng FIND button.
  * Tumatanggap ng Contact Number o Order Number, tapos hinahanap
  * ang customer sa database.
+ *
+ * Bukod sa detalye ng customer, ibinabalik din nito ang LAHAT ng
+ * dati/lumang order niya (order history).
  * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
@@ -25,7 +28,8 @@ if ($keyword == '') {
 }
 
 // Hanapin ang customer gamit ang Customer class.
-$customerModel = new Customer(db());
+$pdo           = db();
+$customerModel = new Customer($pdo);
 $customer      = $customerModel->find($keyword);
 
 // Walang nakita.
@@ -36,8 +40,13 @@ if ($customer == null) {
     ), 404);
 }
 
-// May nakita - ibalik ang impormasyon niya.
+// May nakita - kunin din ang mga lumang order niya.
+$orderModel = new Order($pdo);
+$history    = $orderModel->historyByCustomer($customer['customer_id']);
+
+// Ibalik ang impormasyon niya kasama ang order history.
 json_response(array(
     'ok'       => true,
-    'customer' => $customer
+    'customer' => $customer,
+    'orders'   => $history
 ));

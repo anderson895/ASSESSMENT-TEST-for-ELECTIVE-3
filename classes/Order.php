@@ -72,4 +72,59 @@ class Order
             throw $e;
         }
     }
+
+    /**
+     * Kunin ang LUMA/NAKARAANG mga order ng isang customer.
+     * Ginagamit ito ng FIND button para makita ang order history.
+     *
+     * Ang ibabalik ay listahan ng order. Ang bawat order ay may
+     * sariling listahan ng mga produktong binili ('items').
+     * Ang pinakabago ang nauuna.
+     */
+    public function historyByCustomer($customerId)
+    {
+        $customerId = (int) $customerId;
+
+        // ---- 1) Kunin ang buod ng bawat order ----
+        $sql = "SELECT order_id, subtotal, total_tax, grand_total, created_at
+                FROM orders
+                WHERE customer_id = :cid
+                ORDER BY order_id DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(':cid' => $customerId));
+        $orders = $stmt->fetchAll();
+
+        // Walang dating order.
+        if ($orders == false) {
+            return array();
+        }
+
+        // ---- 2) Kunin ang mga produkto ng bawat order ----
+        $sqlItems = "SELECT p.product_name, p.category, i.quantity, i.total_price
+                     FROM order_items i
+                     JOIN products p ON p.product_id = i.product_id
+                     WHERE i.order_id = :oid
+                     ORDER BY p.category, p.product_name";
+
+        $stmtItems = $this->db->prepare($sqlItems);
+
+        $history = array();
+
+        foreach ($orders as $order) {
+            $stmtItems->execute(array(':oid' => $order['order_id']));
+            $items = $stmtItems->fetchAll();
+
+            $history[] = array(
+                'order_id'    => (int) $order['order_id'],
+                'subtotal'    => (float) $order['subtotal'],
+                'total_tax'   => (float) $order['total_tax'],
+                'grand_total' => (float) $order['grand_total'],
+                'created_at'  => $order['created_at'],
+                'items'       => $items
+            );
+        }
+
+        return $history;
+    }
 }

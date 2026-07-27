@@ -150,6 +150,58 @@ input.invalid {
 }
 .shake { animation: shake .4s; }
 
+/* ---------- Order history (Find button) ---------- */
+.history-for {
+    margin: 0 0 14px;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--btn-hover);
+}
+.history-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: #fffafc;
+}
+.history-item:last-child { margin-bottom: 0; }
+.history-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--header);
+    margin-bottom: 8px;
+}
+.history-date { font-size: .8rem; color: #8a5a70; font-weight: 600; }
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85rem;
+}
+.history-table th,
+.history-table td {
+    padding: 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+.history-table th {
+    color: var(--header);
+    font-size: .75rem;
+    text-transform: uppercase;
+}
+.history-table .num { text-align: right; white-space: nowrap; }
+.history-totals {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 10px;
+    font-size: .85rem;
+}
+.history-totals .grand { color: var(--header); }
+
 /* ---------- Product categories ---------- */
 .categories {
     display: grid;
@@ -358,6 +410,7 @@ body.modal-open { overflow: hidden; }
     .app-header h1 { font-size: 1.25rem; }
     .btn { padding: 11px 18px; }
     .email-row { flex-direction: column; }
+    .history-totals { justify-content: flex-start; gap: 12px; }
 }
 
 /* ---------- Print: show ONLY the receipt (single page) ---------- */

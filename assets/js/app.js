@@ -240,12 +240,151 @@ function showSummary(summary) {
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 6: Ang mga BUTTON
+   BAHAGI 6: Order History (mga lumang order na nakita ng FIND)
+   --------------------------------------------------------------------- */
+
+/**
+ * Gawing madaling basahin ang petsa mula sa database.
+ * Halimbawa: "2026-07-24 15:08:00"  =>  "Jul 24, 2026 3:08 PM"
+ */
+function readableDate(text) {
+    if (!text) {
+        return "";
+    }
+
+    // Ang Safari ay ayaw sa espasyo, kaya gagawin nating "T".
+    const date = new Date(String(text).replace(" ", "T"));
+
+    if (isNaN(date.getTime())) {
+        return text;   // hindi mabasa - ipakita na lang ang orihinal
+    }
+
+    return date.toLocaleString("en-PH", {
+        year:   "numeric",
+        month:  "short",
+        day:    "numeric",
+        hour:   "numeric",
+        minute: "2-digit"
+    });
+}
+
+/** Itago ang Order History card. */
+function hideHistory() {
+    document.getElementById("orderHistory").classList.add("hidden");
+    document.getElementById("historyList").innerHTML = "";
+    document.getElementById("historyFor").textContent = "";
+}
+
+/**
+ * Gumawa ng isang kahon para sa ISANG lumang order.
+ */
+function buildHistoryCard(order) {
+    const box = document.createElement("div");
+    box.className = "history-item";
+
+    // ---- Ulo: Order # at petsa ----
+    const head = document.createElement("div");
+    head.className = "history-head";
+
+    const label = document.createElement("strong");
+    label.textContent = "Order #" + order.order_id;
+
+    const when = document.createElement("span");
+    when.className   = "history-date";
+    when.textContent = readableDate(order.created_at);
+
+    head.appendChild(label);
+    head.appendChild(when);
+    box.appendChild(head);
+
+    // ---- Talahanayan ng mga binili ----
+    const table = document.createElement("table");
+    table.className = "history-table";
+    table.innerHTML =
+        "<thead><tr><th>Product</th><th>Category</th><th>Qty</th><th>Amount</th></tr></thead>";
+
+    const body = document.createElement("tbody");
+
+    for (let i = 0; i < order.items.length; i++) {
+        const item = order.items[i];
+        const row  = document.createElement("tr");
+
+        const name = document.createElement("td");
+        name.textContent = item.product_name;
+
+        const category = document.createElement("td");
+        category.textContent = item.category;
+
+        const qty = document.createElement("td");
+        qty.className   = "num";
+        qty.textContent = item.quantity;
+
+        const amount = document.createElement("td");
+        amount.className   = "num";
+        amount.textContent = peso(item.total_price);
+
+        row.appendChild(name);
+        row.appendChild(category);
+        row.appendChild(qty);
+        row.appendChild(amount);
+        body.appendChild(row);
+    }
+
+    table.appendChild(body);
+    box.appendChild(table);
+
+    // ---- Buod ng order ----
+    const totals = document.createElement("div");
+    totals.className = "history-totals";
+    totals.innerHTML =
+        "<span>Subtotal: <b>" + peso(order.subtotal) + "</b></span>" +
+        "<span>Tax: <b>" + peso(order.total_tax) + "</b></span>" +
+        '<span class="grand">Grand Total: <b>' + peso(order.grand_total) + "</b></span>";
+
+    box.appendChild(totals);
+
+    return box;
+}
+
+/**
+ * Ipakita ang lahat ng lumang order ng nakitang customer.
+ */
+function showHistory(customer, orders) {
+    const card = document.getElementById("orderHistory");
+    const list = document.getElementById("historyList");
+    const info = document.getElementById("historyFor");
+
+    list.innerHTML = "";
+
+    if (!orders) {
+        orders = [];
+    }
+
+    // Sino ang customer at ilan ang order niya.
+    if (orders.length == 0) {
+        info.textContent = customer.customer_name + " — no past orders yet.";
+    } else if (orders.length == 1) {
+        info.textContent = customer.customer_name + " — 1 past order.";
+    } else {
+        info.textContent = customer.customer_name + " — " + orders.length + " past orders.";
+    }
+
+    for (let i = 0; i < orders.length; i++) {
+        list.appendChild(buildHistoryCard(orders[i]));
+    }
+
+    card.classList.remove("hidden");
+}
+
+
+/* ---------------------------------------------------------------------
+   BAHAGI 7: Ang mga BUTTON
    --------------------------------------------------------------------- */
 
 /**
  * FIND BUTTON
- * Naghahanap ng customer gamit ang Contact Number o Order Number.
+ * Naghahanap ng customer gamit ang Contact Number o Order Number,
+ * tapos ipinapakita rin ang lahat ng lumang order niya.
  */
 async function clickFind() {
     const contactBox = document.getElementById("contactNumber");
@@ -274,6 +413,7 @@ async function clickFind() {
         markInvalid("contactNumber", true);
         markInvalid("orderNumber", true);
         showMessage(result.error, "err");
+        hideHistory();
         return;
     }
 
@@ -282,8 +422,22 @@ async function clickFind() {
     document.getElementById("contactNumber").value = result.customer.contact_number;
     document.getElementById("orderNumber").value   = result.customer.order_number;
 
+    // Ipakita ang mga lumang order niya.
+    const orders = result.orders || [];
+    showHistory(result.customer, orders);
+
     clearHighlights();
-    showMessage("✔ Customer found — details loaded.", "ok");
+
+    if (orders.length == 0) {
+        showMessage("✔ Customer found — details loaded. No past orders yet.", "ok");
+    } else {
+        showMessage("✔ Customer found — details loaded. " + orders.length +
+                    " past order" + (orders.length == 1 ? "" : "s") + " below.", "ok");
+        document.getElementById("orderHistory").scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+    }
 }
 
 /**
@@ -385,6 +539,16 @@ async function clickBill() {
     showSummary(result.summary);
     clearHighlights();
     showMessage("✔ Bill saved — Order #" + result.order_id, "ok");
+
+    // Kung nakabukas ang Order History, i-refresh para kasama ang bagong order.
+    if (!document.getElementById("orderHistory").classList.contains("hidden")) {
+        const fresh = await sendToServer("api/find_customer.php", {
+            keyword: customer.order_number
+        });
+        if (fresh.ok) {
+            showHistory(fresh.customer, fresh.orders || []);
+        }
+    }
 
     // I-scroll pababa para makita ang resulta.
     document.getElementById("billTransactions").scrollIntoView({
@@ -524,12 +688,13 @@ function clickClear() {
 
     clearHighlights();
     clearMessage();
+    hideHistory();
     closeModal();
 }
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 7: Ang pop-up (modal) ng resibo
+   BAHAGI 8: Ang pop-up (modal) ng resibo
    --------------------------------------------------------------------- */
 
 /**
@@ -563,7 +728,7 @@ function closeModal() {
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 8: Ikabit ang lahat ng button
+   BAHAGI 9: Ikabit ang lahat ng button
    Tumatakbo ito kapag handa na ang buong webpage.
    --------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", function () {

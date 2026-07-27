@@ -45,7 +45,7 @@ function h($text)
          onerror="this.style.display='none'">
     <div class="app-title">
         <h1>ONLINE BILLING SYSTEM</h1>
-        <p class="app-sub">Mika &bull; Ricky &bull; Angeline</p>
+        <p class="app-sub">mica&bull; Ricky &bull; Angeline</p>
     </div>
 </header>
 
@@ -77,10 +77,18 @@ function h($text)
                 <button type="button" class="btn btn-ghost" id="btnAddCustomer">Add Customer</button>
             </div>
         </div>
-        <p class="hint"><strong>Find</strong> an existing customer by Contact Number or Order Number.
+        <p class="hint"><strong>Find</strong> an existing customer by Contact Number or Order Number —
+           it also shows all of that customer's past orders below.
            <strong>Add Customer</strong> to register a new one. For billing, enter the
            <strong>Customer Name</strong>, <strong>Contact Number</strong>,
            and <strong>Order Number</strong> (all required).</p>
+    </section>
+
+    <!-- ===================== ORDER HISTORY (Find button) ===================== -->
+    <section class="card hidden" id="orderHistory">
+        <h2 class="card-title">Order History</h2>
+        <p class="history-for" id="historyFor"></p>
+        <div id="historyList"></div>
     </section>
 
     <!-- ===================== PRODUCT CATEGORIES ===================== -->
