@@ -3,8 +3,14 @@
  * api/email.php
  * -----------------------------------------------------------------
  * Ginagamit ito ng E-MAIL at PRINT buttons.
- * Ginagawa nito ang teksto ng resibo. Kung may e-mail address,
- * susubukan itong ipadala; kung wala, ipapakita lang sa screen.
+ *
+ * Ginagawa nito ang RESIBO (may logo, detalye ng tindahan, cashier,
+ * at larawan ng bawat produkto). Kung may e-mail address, susubukan
+ * itong ipadala; kung wala, ipapakita lang sa screen.
+ *
+ * Iisang Receipt class lang ang ginagamit dito at sa BILL button,
+ * kaya laging PAREHO ang hitsura ng makikita, ng maipa-print,
+ * at ng maipapadala sa e-mail.
  * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
@@ -13,104 +19,59 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
-/**
- * Gawing pera ang numero. Halimbawa: 149.5 => "PHP 149.50"
- */
-function pesoText($amount)
-{
-    return 'PHP ' . number_format($amount, 2);
-}
-
 // ---- Kunin ang datos mula sa webpage ----
-$input = json_input();
+$input    = json_input();
+$customer = input_customer($input);
 
-$to = '';
-if (isset($input['to'])) {
-    $to = trim($input['to']);
+$to = isset($input['to']) ? trim($input['to']) : '';
+
+$pdo = db();
+
+// ---- Kalkulahin ang bill at kunin ang cashier ----
+$bill    = build_bill($pdo, $input);
+$cashier = input_cashier($pdo, $input);
+
+// ---- Anong order number ang ilalagay sa resibo? ----
+// Kung na-bill na, ipinapasa ng webpage ang totoong order number.
+// Kung preview pa lang, ang susunod na order number ang ipapakita.
+$orderNumber = isset($input['order_number']) ? trim($input['order_number']) : '';
+
+if ($orderNumber == '') {
+    $orderModel  = new Order($pdo);
+    $orderNumber = $orderModel->nextOrderNumber();
 }
 
-$customer = array();
-if (isset($input['customer'])) {
-    $customer = $input['customer'];
-}
+// ---- Buuin ang resibo ----
+$receipt = new Receipt(store(), $bill, $customer, $cashier, $orderNumber);
 
-$cart = array();
-if (isset($input['cart'])) {
-    $cart = $input['cart'];
-}
-
-// ---- Kalkulahin ang bill ----
-$productModel = new Product(db());
-$bill         = new Bill($productModel->priceMap());
-$bill->load($cart);
-$summary = $bill->summary();
-
-// ---- Kunin ang pangalan, contact, at order number ----
-$name    = 'Walk-in Customer';
-$contact = '-';
-$orderNo = '-';
-
-if (isset($customer['name']) && $customer['name'] != '')                 { $name    = $customer['name']; }
-if (isset($customer['contact']) && $customer['contact'] != '')           { $contact = $customer['contact']; }
-if (isset($customer['order_number']) && $customer['order_number'] != '') { $orderNo = $customer['order_number']; }
-
-// ---- Buuin ang resibo, linya bawat linya ----
-$lines = array();
-
-$lines[] = '=====================================';
-$lines[] = '        ONLINE BILLING SYSTEM';
-$lines[] = '      Mika . Ricky . Angeline';
-$lines[] = '=====================================';
-$lines[] = 'Customer : ' . $name;
-$lines[] = 'Contact  : ' . $contact;
-$lines[] = 'Order No : ' . $orderNo;
-$lines[] = 'Date     : ' . date('Y-m-d H:i');
-$lines[] = '-------------------------------------';
-
-// Total ng bawat kategorya
-$lines[] = 'CATEGORY TOTALS';
-foreach ($summary['category_totals'] as $category => $total) {
-    // Ang %-26s ay para pantay-pantay ang pagkakahanay ng teksto.
-    $lines[] = sprintf('  %-26s %s', $category, pesoText($total));
-}
-$lines[] = '-------------------------------------';
-
-// Buwis ng bawat kategorya
-$lines[] = 'TAXES';
-foreach ($summary['category_taxes'] as $category => $tax) {
-    $rate    = $summary['tax_rates'][$category] * 100;   // gawing porsyento
-    $lines[] = sprintf('  %-20s (%4.1f%%) %s', $category, $rate, pesoText($tax));
-}
-$lines[] = '-------------------------------------';
-
-// Kabuuang komputasyon
-$lines[] = sprintf('  %-26s %s', 'Subtotal',    pesoText($summary['subtotal']));
-$lines[] = sprintf('  %-26s %s', 'Total Tax',   pesoText($summary['total_tax']));
-$lines[] = sprintf('  %-26s %s', 'GRAND TOTAL', pesoText($summary['grand_total']));
-$lines[] = '=====================================';
-$lines[] = 'Thank you for your purchase!';
-
-// Pagsama-samahin ang lahat ng linya.
-$body = implode("\n", $lines);
+$html = $receipt->html(false);   // para sa screen at sa print
+$text = $receipt->text();        // plain text na bersyon
 
 // ---- Subukang ipadala kung may e-mail address ----
 $sent  = false;
 $error = '';
 
 if ($to != '' && filter_var($to, FILTER_VALIDATE_EMAIL)) {
+
+    // Bersyong pang-e-mail: naka-embed na ang mga larawan sa loob.
+    $emailHtml = $receipt->html(true);
+    $images    = $receipt->embeddedImages();
+
     // I-load ang SMTP settings (Gmail) mula sa config/mail.php.
     $mailConfig = require __DIR__ . '/../config/mail.php';
+    $store      = store();
 
     $mailer = new PHPMailer(true);   // true = magtapon ng exception kapag may error
 
     try {
         // ---- SMTP setup ----
         $mailer->isSMTP();
-        $mailer->Host       = $mailConfig['host'];
-        $mailer->SMTPAuth   = true;
-        $mailer->Username   = $mailConfig['username'];
-        $mailer->Password   = $mailConfig['password'];
-        $mailer->Port       = (int) $mailConfig['port'];
+        $mailer->Host     = $mailConfig['host'];
+        $mailer->SMTPAuth = true;
+        $mailer->Username = $mailConfig['username'];
+        $mailer->Password = $mailConfig['password'];
+        $mailer->Port     = (int) $mailConfig['port'];
+        $mailer->CharSet  = 'UTF-8';   // para lumabas nang tama ang ₱
 
         if ($mailConfig['encryption'] === 'ssl') {
             $mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
@@ -122,14 +83,21 @@ if ($to != '' && filter_var($to, FILTER_VALIDATE_EMAIL)) {
         $mailer->setFrom($mailConfig['from_email'], $mailConfig['from_name']);
         $mailer->addAddress($to);
 
+        // ---- Idikit ang mga larawan (logo at produkto) sa mensahe ----
+        // Kaya kahit offline ang customer, kita pa rin ang resibo.
+        foreach ($images as $cid => $path) {
+            $mailer->addEmbeddedImage($path, $cid, basename($path));
+        }
+
         // ---- Nilalaman ng e-mail ----
-        $mailer->Subject = 'Your Online Billing Receipt';
-        // Plain-text ang resibo kaya isa-set natin bilang plain body.
-        $mailer->isHTML(false);
-        $mailer->Body    = $body;
+        $mailer->Subject = $store['name'] . ' Official Receipt — ' . $orderNumber;
+        $mailer->isHTML(true);
+        $mailer->Body    = $emailHtml;
+        $mailer->AltBody = $text;   // kapag hindi kayang magpakita ng HTML
 
         $mailer->send();
         $sent = true;
+
     } catch (PHPMailerException $e) {
         // Ibalik ang tunay na dahilan (hal. maling password, walang internet).
         $error = $mailer->ErrorInfo;
@@ -138,9 +106,12 @@ if ($to != '' && filter_var($to, FILTER_VALIDATE_EMAIL)) {
 
 // ---- Ibalik ang resibo sa webpage ----
 json_response(array(
-    'ok'    => true,
-    'sent'  => $sent,
-    'to'    => $to,
-    'body'  => $body,
-    'error' => $error
+    'ok'           => true,
+    'sent'         => $sent,
+    'to'           => $to,
+    'order_number' => $orderNumber,
+    'receipt_html' => $html,
+    'receipt_text' => $text,
+    'summary'      => $bill->summary(),
+    'error'        => $error
 ));

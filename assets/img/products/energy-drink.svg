@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Energy Drink">
+  <rect width="96" height="96" rx="18" fill="#E4F3FD"/>
+  <rect x="36" y="16" width="24" height="66" rx="8" fill="#1F2937"/>
+  <rect x="36" y="16" width="24" height="8" rx="4" fill="#9CA3AF"/>
+  <rect x="36" y="38" width="24" height="24" fill="#22C55E"/>
+  <path d="M50 40l-8 12h6l-2 10 9-13h-6z" fill="#1F2937"/>
+  <rect x="36" y="70" width="24" height="6" fill="#9CA3AF" opacity=".5"/>
+</svg>

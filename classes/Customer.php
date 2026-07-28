@@ -4,6 +4,11 @@
  * -----------------------------------------------------------------
  * Class para sa customer. Dito ginagawa ang paghahanap (Find button)
  * at ang pag-save ng customer sa database.
+ *
+ * TANDAAN: Hindi na kailangang mag-type ng Order Number ang cashier.
+ * AUTOMATIC nang ginagawa ang order number tuwing may na-save na bill
+ * (tingnan ang Order::nextOrderNumber). Ang kailangan lang dito ay
+ * ang PANGALAN at ang CONTACT NUMBER.
  * -----------------------------------------------------------------
  */
 class Customer
@@ -18,7 +23,14 @@ class Customer
     /**
      * FIND BUTTON.
      * Hinahanap ang customer gamit ang Contact Number O Order Number.
-     * Kapag nakita, ibabalik ang buong impormasyon niya.
+     *
+     * Tatlo ang tinitingnan nito:
+     *   1. contact_number ng customer
+     *   2. order_number ng kahit alin sa mga order niya (ito ang
+     *      nakalimbag sa resibo)
+     *   3. lumang order_number na nakadikit sa customer record
+     *      (mula pa sa unang bersyon ng sistema)
+     *
      * Kapag wala, ibabalik ang null.
      */
     public function find($keyword)
@@ -29,15 +41,20 @@ class Customer
             return null;
         }
 
-        $sql = "SELECT customer_id, customer_name, contact_number, order_number
-                FROM customers
-                WHERE contact_number = :contact OR order_number = :orderNo
-                LIMIT 1";
+        $sql = "SELECT c.customer_id, c.customer_name, c.contact_number
+                  FROM customers c
+             LEFT JOIN orders o ON o.customer_id = c.customer_id
+                 WHERE c.contact_number = :contact
+                    OR c.order_number   = :legacyNo
+                    OR o.order_number   = :orderNo
+              ORDER BY c.customer_id
+                 LIMIT 1";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute(array(
-            ':contact' => $keyword,
-            ':orderNo' => $keyword
+            ':contact'  => $keyword,
+            ':legacyNo' => $keyword,
+            ':orderNo'  => $keyword
         ));
 
         $row = $stmt->fetch();
@@ -65,11 +82,11 @@ class Customer
             return null;
         }
 
-        $sql = "SELECT customer_id, customer_name, contact_number, order_number
-                FROM customers
-                WHERE LOWER(customer_name) = LOWER(:name)
-                  AND contact_number = :contact
-                LIMIT 1";
+        $sql = "SELECT customer_id, customer_name, contact_number
+                  FROM customers
+                 WHERE LOWER(customer_name) = LOWER(:name)
+                   AND contact_number = :contact
+                 LIMIT 1";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute(array(
@@ -86,47 +103,23 @@ class Customer
     }
 
     /**
-     * Hanapin ang customer gamit ang Order Number lamang.
-     * Ginagamit para malaman kung may ibang gumamit na ng order number.
-     */
-    public function findByOrderNumber($orderNo)
-    {
-        $orderNo = trim($orderNo);
-
-        if ($orderNo == '') {
-            return null;
-        }
-
-        $sql = "SELECT customer_id, customer_name, contact_number, order_number
-                FROM customers
-                WHERE order_number = :orderNo
-                LIMIT 1";
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(array(':orderNo' => $orderNo));
-
-        $row = $stmt->fetch();
-
-        if ($row == false) {
-            return null;
-        }
-        return $row;
-    }
-
-    /**
      * I-save ang customer at ibalik ang customer_id.
      *
      * Paano ito gumagana:
      *   1. Kung dati na siyang customer (parehong pangalan at contact),
      *      gagamitin ang lumang record - walang duplicate.
-     *   2. Kung bagong tao, dapat hindi pa gamit ang Order Number.
-     *   3. Kung malinis, isasave siya bilang bagong customer.
+     *   2. Kung bagong tao, isasave siya bilang bagong customer.
      */
-    public function save($name, $contact, $orderNo)
+    public function save($name, $contact)
     {
         $name    = trim($name);
         $contact = trim($contact);
-        $orderNo = trim($orderNo);
+
+        if ($name == '' || $contact == '') {
+            throw new RuntimeException(
+                'Please enter the Customer Name and Contact Number.'
+            );
+        }
 
         // 1) Dati na bang customer? Gamitin ang lumang record.
         $existing = $this->findByNameAndContact($name, $contact);
@@ -134,24 +127,14 @@ class Customer
             return (int) $existing['customer_id'];
         }
 
-        // 2) Bagong tao - siguraduhing hindi pa gamit ang order number.
-        $owner = $this->findByOrderNumber($orderNo);
-        if ($owner != null) {
-            throw new RuntimeException(
-                'Order Number "' . $orderNo . '" is already used by '
-                . $owner['customer_name'] . '. Please enter a different Order Number.'
-            );
-        }
-
-        // 3) I-save ang bagong customer.
-        $sql = "INSERT INTO customers (customer_name, contact_number, order_number)
-                VALUES (:name, :contact, :orderNo)";
+        // 2) Bagong tao - i-save siya.
+        $sql = "INSERT INTO customers (customer_name, contact_number)
+                VALUES (:name, :contact)";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute(array(
             ':name'    => $name,
-            ':contact' => $contact,
-            ':orderNo' => $orderNo
+            ':contact' => $contact
         ));
 
         // Ibalik ang ID ng bagong naisave na customer.

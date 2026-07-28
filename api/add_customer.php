@@ -4,10 +4,13 @@
  * -----------------------------------------------------------------
  * Ginagamit ito ng ADD CUSTOMER button.
  * Nagreregister ng BAGONG customer at sini-save sa database,
- * kahit wala pang order/bill. Ang tatlong detalye ay required:
+ * kahit wala pang order/bill.
+ *
+ * Dalawa lang ang kailangan:
  *   - Customer Name
  *   - Contact Number
- *   - Order Number  (dapat hindi pa gamit ng iba)
+ *
+ * Wala nang Order Number dito — automatic na iyon tuwing may bill.
  * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/../config/bootstrap.php';
@@ -15,15 +18,14 @@ require_once __DIR__ . '/../config/bootstrap.php';
 // ---- Kunin ang datos mula sa webpage ----
 $input = json_input();
 
-$name    = isset($input['name'])         ? trim($input['name'])         : '';
-$contact = isset($input['contact'])      ? trim($input['contact'])      : '';
-$orderNo = isset($input['order_number']) ? trim($input['order_number']) : '';
+$name    = isset($input['name'])    ? trim($input['name'])    : '';
+$contact = isset($input['contact']) ? trim($input['contact']) : '';
 
-// ---- Dapat kompleto ang tatlong field ----
-if ($name == '' || $contact == '' || $orderNo == '') {
+// ---- Dapat kompleto ang dalawang field ----
+if ($name == '' || $contact == '') {
     json_response(array(
         'ok'    => false,
-        'error' => 'Please enter the Customer Name, Contact Number, and Order Number.'
+        'error' => 'Please enter the Customer Name and Contact Number.'
     ), 422);
 }
 
@@ -34,18 +36,13 @@ $existing = $customerModel->findByNameAndContact($name, $contact);
 if ($existing != null) {
     json_response(array(
         'ok'       => false,
-        'error'    => $name . ' is already registered (Order No: ' . $existing['order_number'] . ').',
+        'error'    => $name . ' is already registered with that contact number.',
         'customer' => $existing
     ), 409);
 }
 
 // ---- I-save ang bagong customer ----
-try {
-    $customerId = $customerModel->save($name, $contact, $orderNo);
-} catch (RuntimeException $e) {
-    // Halimbawa: gamit na ng ibang tao ang Order Number.
-    json_response(array('ok' => false, 'error' => $e->getMessage()), 409);
-}
+$customerId = $customerModel->save($name, $contact);
 
 // ---- Ibalik ang bagong record ----
 json_response(array(
@@ -54,7 +51,6 @@ json_response(array(
     'customer' => array(
         'customer_id'    => $customerId,
         'customer_name'  => $name,
-        'contact_number' => $contact,
-        'order_number'   => $orderNo
+        'contact_number' => $contact
     )
 ));

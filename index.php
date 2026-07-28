@@ -2,20 +2,34 @@
 /**
  * index.php
  * -----------------------------------------------------------------
- * Ito ang pangunahing pahina ng Online Billing System.
- * Dito ipinapakita ang customer details, ang tatlong kategorya
- * ng produkto, ang mga button, at ang Bill Transactions.
+ * Ito ang pangunahing pahina ng MRA STORE Online Billing System.
+ *
+ * Dito makikita ang:
+ *   - Cashier on Duty (may Employee ID, Position, at Shift)
+ *   - AUTOMATIC na Order Number
+ *   - Customer Details
+ *   - Mga produkto kada kategorya (may LARAWAN, Price, at Stock)
+ *   - Payment Method, Amount Received, at Discount
+ *   - Bill Transactions (Subtotal, Discount, VAT 12%, Grand Total)
  * -----------------------------------------------------------------
  */
 require_once __DIR__ . '/config/bootstrap.php';
 
-// Kunin ang mga produkto mula sa database, naka-grupo ayon sa kategorya.
-$grouped = array();
-$dbError = null;
+$store = store();
+
+// Kunin ang mga produkto at empleyado mula sa database.
+$grouped   = array();
+$employees = array();
+$dbError   = null;
 
 try {
-    $productModel = new Product(db());
-    $grouped      = $productModel->grouped();
+    $pdo = db();
+
+    $productModel  = new Product($pdo);
+    $grouped       = $productModel->grouped();
+
+    $employeeModel = new Employee($pdo);
+    $employees     = $employeeModel->allActive();
 } catch (Exception $e) {
     $dbError = $e->getMessage();
 }
@@ -26,7 +40,7 @@ try {
  */
 function h($text)
 {
-    return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 }
 ?>
 <!DOCTYPE html>
@@ -34,19 +48,30 @@ function h($text)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MRA — Online Billing System</title>
-    <link rel="icon" type="image/png" href="assets/img/logo.png">
+    <title><?= h($store['name']) ?> — Online Billing System</title>
+    <link rel="icon" type="image/png" href="<?= h($store['logo']) ?>">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
+<!-- ===================== HEADER ===================== -->
 <header class="app-header">
-    <img src="assets/img/logo.png" alt="MRA logo" class="app-logo"
-         onerror="this.style.display='none'">
-    <div class="app-title">
-        <h1>ONLINE BILLING SYSTEM</h1>
-        <p class="app-sub">mica&bull; Ricky &bull; Angeline</p>
+    <div class="app-header-inner">
+        <img src="<?= h($store['logo']) ?>" alt="<?= h($store['name']) ?> logo" class="app-logo"
+             onerror="this.style.display='none'">
+
+        <div class="app-title">
+            <h1><?= h($store['name']) ?></h1>
+            <p class="app-sub"><?= h($store['tagline']) ?></p>
+        </div>
+
+        <div class="app-store-info">
+            <span><?= h($store['address']) ?></span>
+            <span><?= h($store['contact']) ?></span>
+            <span><?= h($store['email']) ?></span>
+        </div>
     </div>
+    <p class="app-strip">Online Billing System</p>
 </header>
 
 <main class="container">
@@ -59,29 +84,75 @@ function h($text)
         </div>
     <?php endif; ?>
 
+    <!-- ===================== CASHIER + ORDER NUMBER ===================== -->
+    <section class="card counter-card">
+        <div class="counter-grid">
+
+            <label class="field">
+                <span class="field-label">Cashier on Duty</span>
+                <select id="cashierSelect">
+                    <option value="">— Select cashier —</option>
+                    <?php foreach ($employees as $employee): ?>
+                        <option value="<?= (int) $employee['employee_id'] ?>"
+                                data-code="<?= h($employee['employee_code']) ?>"
+                                data-position="<?= h($employee['position']) ?>"
+                                data-shift="<?= h($employee['shift']) ?>">
+                            <?= h($employee['employee_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <div class="field">
+                <span class="field-label">Employee ID</span>
+                <output class="field-static" id="cashierCode">—</output>
+            </div>
+
+            <div class="field">
+                <span class="field-label">Position</span>
+                <output class="field-static" id="cashierPosition">—</output>
+            </div>
+
+            <div class="field">
+                <span class="field-label">Shift</span>
+                <output class="field-static" id="cashierShift">—</output>
+            </div>
+
+            <div class="field field-order">
+                <span class="field-label">Order No. <em>(automatic)</em></span>
+                <output class="field-static field-order-no" id="orderNumber">—</output>
+            </div>
+
+        </div>
+    </section>
+
     <!-- ===================== CUSTOMER DETAILS ===================== -->
     <section class="card">
         <h2 class="card-title">Customer Details</h2>
+
         <div class="customer-grid">
-            <label>Customer Name
+            <label class="field">
+                <span class="field-label">Customer Name</span>
                 <input type="text" id="customerName" placeholder="Full name">
             </label>
-            <label>Contact Number
+
+            <label class="field">
+                <span class="field-label">Contact Number</span>
                 <input type="text" id="contactNumber" placeholder="09xxxxxxxxx">
             </label>
-            <label>Order Number
-                <input type="text" id="orderNumber" placeholder="ORD-xxxx">
-            </label>
+
             <div class="find-wrap">
                 <button type="button" class="btn" id="btnFind">Find</button>
                 <button type="button" class="btn btn-ghost" id="btnAddCustomer">Add Customer</button>
             </div>
         </div>
-        <p class="hint"><strong>Find</strong> an existing customer by Contact Number or Order Number —
-           it also shows all of that customer's past orders below.
-           <strong>Add Customer</strong> to register a new one. For billing, enter the
-           <strong>Customer Name</strong>, <strong>Contact Number</strong>,
-           and <strong>Order Number</strong> (all required).</p>
+
+        <p class="hint">
+            <strong>Find</strong> an existing customer by Contact Number or by any Order Number
+            printed on a past receipt — it also lists that customer's previous orders below.
+            <strong>Add Customer</strong> registers a new one. The <strong>Order Number is
+            generated automatically</strong> when you press Bill.
+        </p>
     </section>
 
     <!-- ===================== ORDER HISTORY (Find button) ===================== -->
@@ -93,32 +164,112 @@ function h($text)
 
     <!-- ===================== PRODUCT CATEGORIES ===================== -->
     <section class="categories">
-        <?php foreach ($grouped as $category => $products): ?>
+        <?php foreach ($grouped as $categoryName => $category): ?>
             <div class="card category-card">
-                <h2 class="card-title"><?= h($category) ?></h2>
+
+                <div class="category-head">
+                    <img src="<?= h($category['image']) ?>" alt="<?= h($categoryName) ?>"
+                         class="category-img" onerror="this.style.display='none'">
+                    <h2 class="category-name"><?= h($categoryName) ?></h2>
+                </div>
+
                 <table class="product-table">
                     <thead>
-                        <tr><th>Product</th><th>Price</th><th>Qty</th></tr>
+                        <tr>
+                            <th colspan="2">Product</th>
+                            <th class="col-price">Price</th>
+                            <th class="col-stock">Stock</th>
+                            <th class="col-qty">Qty</th>
+                        </tr>
                     </thead>
                     <tbody>
-                    <?php foreach ($products as $p): ?>
+                    <?php foreach ($category['products'] as $p): ?>
                         <tr>
-                            <td><?= h($p['product_name']) ?></td>
-                            <td class="price">₱<?= number_format((float) $p['price'], 2) ?></td>
-                            <td>
-                                <input type="number" min="0" max="9999" step="1" value="0"
+                            <td class="col-thumb">
+                                <img src="<?= h($p['image']) ?>" alt="<?= h($p['product_name']) ?>"
+                                     class="product-img" loading="lazy"
+                                     onerror="this.src='assets/img/products/placeholder.svg'">
+                            </td>
+                            <td class="col-name"><?= h($p['product_name']) ?></td>
+                            <td class="col-price">₱<?= number_format($p['price'], 2) ?></td>
+                            <td class="col-stock">
+                                <span class="stock-badge<?= $p['stock'] <= 0 ? ' out' : ($p['stock'] <= 10 ? ' low' : '') ?>"
+                                      data-stock-for="<?= (int) $p['product_id'] ?>">
+                                    <?= (int) $p['stock'] ?>
+                                </span>
+                            </td>
+                            <td class="col-qty">
+                                <input type="number" min="0" max="<?= (int) $p['stock'] ?>" step="1" value="0"
                                        inputmode="numeric" pattern="[0-9]*"
                                        class="qty"
+                                       <?= $p['stock'] <= 0 ? 'disabled' : '' ?>
                                        data-product-id="<?= (int) $p['product_id'] ?>"
                                        data-category="<?= h($p['category']) ?>"
+                                       data-stock="<?= (int) $p['stock'] ?>"
                                        data-price="<?= (float) $p['price'] ?>">
                             </td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
                 </table>
+
             </div>
         <?php endforeach; ?>
+    </section>
+
+    <!-- ===================== PAYMENT & DISCOUNT ===================== -->
+    <section class="card">
+        <h2 class="card-title">Payment &amp; Discount</h2>
+
+        <div class="payment-grid">
+
+            <!-- ---- Payment Method ---- -->
+            <div class="pay-block">
+                <span class="field-label">Payment Method</span>
+                <div class="choice-row">
+                    <label class="choice">
+                        <input type="radio" name="paymentMethod" value="Cash" checked>
+                        <span class="choice-box">Cash</span>
+                    </label>
+                    <label class="choice">
+                        <input type="radio" name="paymentMethod" value="GCash">
+                        <span class="choice-box">GCash</span>
+                    </label>
+                    <label class="choice">
+                        <input type="radio" name="paymentMethod" value="Card">
+                        <span class="choice-box">Card</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ---- Amount Received / Change ---- -->
+            <div class="pay-block">
+                <label class="field">
+                    <span class="field-label">Amount Received</span>
+                    <input type="text" id="amountReceived" inputmode="decimal"
+                           placeholder="0.00" value="">
+                </label>
+                <p class="pay-note" id="amountNote">Cash payment — enter the amount handed over.</p>
+            </div>
+
+            <!-- ---- Discount ---- -->
+            <div class="pay-block">
+                <label class="field">
+                    <span class="field-label">Discount Type</span>
+                    <select id="discountType">
+                        <option value="None">No Discount</option>
+                        <option value="Senior Citizen">Senior Citizen (20%)</option>
+                        <option value="PWD">PWD (20%)</option>
+                        <option value="Promo">Promo (10%)</option>
+                    </select>
+                </label>
+                <div class="pay-inline">
+                    <span>Discount Amount</span>
+                    <output id="discountAmount">₱0.00</output>
+                </div>
+            </div>
+
+        </div>
     </section>
 
     <!-- ===================== BUTTONS ===================== -->
@@ -126,7 +277,7 @@ function h($text)
         <p class="form-notice" id="formNotice"></p>
         <div class="button-bar">
             <button type="button" class="btn" id="btnTotal">Total</button>
-            <button type="button" class="btn" id="btnBill">Bill</button>
+            <button type="button" class="btn btn-primary" id="btnBill">Bill</button>
             <button type="button" class="btn" id="btnEmail">E-Mail</button>
             <button type="button" class="btn" id="btnPrint">Print</button>
             <button type="button" class="btn btn-ghost" id="btnClear">Clear</button>
@@ -138,33 +289,43 @@ function h($text)
         <h2 class="card-title">Bill Transactions</h2>
 
         <div class="bill-grid">
+
             <div class="bill-col">
                 <h3>Category Totals</h3>
-                <div class="bill-row"><span>Beauty &amp; Personal Care Total</span><output id="totBeauty">₱0.00</output></div>
-                <div class="bill-row"><span>Grocery Total</span><output id="totGrocery">₱0.00</output></div>
-                <div class="bill-row"><span>Beverages Total</span><output id="totBeverage">₱0.00</output></div>
+                <?php foreach ($grouped as $categoryName => $category): ?>
+                    <div class="bill-row">
+                        <span><?= h($categoryName) ?></span>
+                        <output data-cat-total="<?= h($categoryName) ?>">₱0.00</output>
+                    </div>
+                <?php endforeach; ?>
+                <div class="bill-row">
+                    <span>Total Items</span>
+                    <output id="totalItems">0</output>
+                </div>
             </div>
 
             <div class="bill-col">
-                <h3>Taxes</h3>
-                <div class="bill-row"><span>Beauty Tax</span><output id="taxBeauty">₱0.00</output></div>
-                <div class="bill-row"><span>Grocery Tax</span><output id="taxGrocery">₱0.00</output></div>
-                <div class="bill-row"><span>Beverage Tax</span><output id="taxBeverage">₱0.00</output></div>
-            </div>
-
-            <div class="bill-col">
-                <h3>Overall Computation</h3>
+                <h3>Computation</h3>
                 <div class="bill-row"><span>Subtotal</span><output id="subtotal">₱0.00</output></div>
-                <div class="bill-row"><span>Total Tax</span><output id="totalTax">₱0.00</output></div>
+                <div class="bill-row"><span id="discountLabel">Discount</span><output id="discountOut">₱0.00</output></div>
+                <div class="bill-row"><span>VATable Sales</span><output id="vatableSales">₱0.00</output></div>
+                <div class="bill-row"><span>VAT (12%)</span><output id="vatAmount">₱0.00</output></div>
                 <div class="bill-row grand"><span>Grand Total</span><output id="grandTotal">₱0.00</output></div>
             </div>
+
+            <div class="bill-col">
+                <h3>Payment</h3>
+                <div class="bill-row"><span>Payment Method</span><output id="methodOut">Cash</output></div>
+                <div class="bill-row"><span>Amount Received</span><output id="receivedOut">₱0.00</output></div>
+                <div class="bill-row change"><span>Change</span><output id="changeDue">₱0.00</output></div>
+            </div>
+
         </div>
     </section>
 
-
 </main>
 
-<!-- ===================== RECEIPT POP-UP (Print / E-Mail) ===================== -->
+<!-- ===================== RECEIPT POP-UP (Bill / Print / E-Mail) ===================== -->
 <div class="modal-overlay hidden" id="receiptModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal">
         <div class="modal-head">
@@ -172,7 +333,8 @@ function h($text)
             <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
         </div>
 
-        <pre id="modalBody" class="receipt"></pre>
+        <!-- Dito inilalagay ang resibong ginawa ng Receipt class (PHP). -->
+        <div id="modalBody" class="receipt-wrap"></div>
 
         <!-- E-Mail controls (shown only in e-mail mode) -->
         <div class="modal-email hidden" id="emailControls">

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Orange Juice">
+  <rect width="96" height="96" rx="18" fill="#E4F3FD"/>
+  <path d="M32 30h32v44a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8z" fill="#FB923C"/>
+  <path d="M32 30l16-14 16 14z" fill="#F97316"/>
+  <rect x="37" y="46" width="22" height="24" rx="4" fill="#FFEDD5"/>
+  <circle cx="48" cy="58" r="8" fill="#FB923C"/>
+  <path d="M48 50v16M40 58h16M42.3 52.3l11.4 11.4M53.7 52.3L42.3 63.7" stroke="#FFEDD5" stroke-width="1.6"/>
+  <rect x="58" y="18" width="6" height="18" rx="3" fill="#7FCDF3" transform="rotate(20 61 27)"/>
+</svg>

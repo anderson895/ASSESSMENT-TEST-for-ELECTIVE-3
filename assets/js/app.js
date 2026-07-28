@@ -1,11 +1,11 @@
 /* =====================================================================
-   app.js - Online Billing System
+   app.js - MRA STORE Online Billing System
    ---------------------------------------------------------------------
    Ito ang JavaScript na kumokontrol sa mga button:
-   Find, Total, Bill, E-Mail, Print, at Clear.
+   Find, Add Customer, Total, Bill, E-Mail, Print, at Clear.
 
-   Ang totoong komputasyon ay ginagawa ng PHP (OOP) sa /api folder.
-   Ang trabaho lang ng file na ito ay:
+   Ang totoong komputasyon (discount, 12% VAT, sukli) ay ginagawa ng
+   PHP (OOP) sa /api folder. Ang trabaho lang ng file na ito ay:
      1. kunin ang inilagay ng user
      2. ipadala sa PHP
      3. ipakita ang sagot sa screen
@@ -18,7 +18,7 @@
 
 /**
  * Gawing pera ang numero.
- * Halimbawa: 515.5  =>  "₱515.56"
+ * Halimbawa: 515.5  =>  "₱515.50"
  */
 function peso(amount) {
     let number = Number(amount);
@@ -36,16 +36,15 @@ function peso(amount) {
  * Ang sagot ay nasa JSON format.
  */
 async function sendToServer(url, data) {
-    const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    });
-
     try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
         return await response.json();
     } catch (error) {
-        return { ok: false, error: "May problema sa server." };
+        return { ok: false, error: "Cannot reach the server. Is XAMPP running?" };
     }
 }
 
@@ -55,14 +54,43 @@ async function sendToServer(url, data) {
    --------------------------------------------------------------------- */
 
 /**
- * Kunin ang detalye ng customer mula sa tatlong text box.
+ * Kunin ang detalye ng customer.
+ * Wala nang Order Number dito — automatic na iyon.
  */
 function getCustomer() {
     return {
-        name:         document.getElementById("customerName").value.trim(),
-        contact:      document.getElementById("contactNumber").value.trim(),
-        order_number: document.getElementById("orderNumber").value.trim()
+        name:    document.getElementById("customerName").value.trim(),
+        contact: document.getElementById("contactNumber").value.trim()
     };
+}
+
+/** Sinong cashier ang napili? (0 kapag wala) */
+function getCashierId() {
+    return Number(document.getElementById("cashierSelect").value || 0);
+}
+
+/** Anong paraan ng pagbayad ang napili? */
+function getPaymentMethod() {
+    const chosen = document.querySelector('input[name="paymentMethod"]:checked');
+    return chosen ? chosen.value : "Cash";
+}
+
+/** Magkano ang ibinigay na bayad? */
+function getAmountReceived() {
+    const value = document.getElementById("amountReceived").value.replace(/[^0-9.]/g, "");
+    const amount = parseFloat(value);
+    return isNaN(amount) ? 0 : amount;
+}
+
+/** Anong uri ng discount ang napili? */
+function getDiscountType() {
+    return document.getElementById("discountType").value;
+}
+
+/** Ano ang kasalukuyang Order Number na nakadisplay? */
+function getOrderNumber() {
+    const text = document.getElementById("orderNumber").textContent.trim();
+    return text === "—" ? "" : text;
 }
 
 /**
@@ -80,7 +108,6 @@ function getCart() {
         if (quantity > 0) {
             cart.push({
                 product_id: Number(box.dataset.productId),
-                category:   box.dataset.category,
                 quantity:   quantity
             });
         }
@@ -89,19 +116,46 @@ function getCart() {
     return cart;
 }
 
+/**
+ * Buuin ang buong datos na ipapadala sa PHP.
+ * Iisang porma lang ito para sa Total, Bill, E-Mail, at Print —
+ * kaya siguradong pareho ang komputasyon sa apat.
+ */
+function buildPayload(extra) {
+    const payload = {
+        cart:            getCart(),
+        customer:        getCustomer(),
+        employee_id:     getCashierId(),
+        payment_method:  getPaymentMethod(),
+        amount_received: getAmountReceived(),
+        discount_type:   getDiscountType()
+    };
+
+    if (extra) {
+        for (const key in extra) {
+            payload[key] = extra[key];
+        }
+    }
+
+    return payload;
+}
+
 
 /* ---------------------------------------------------------------------
    BAHAGI 3: Pagpapakita ng mensahe at pag-highlight ng field
    --------------------------------------------------------------------- */
 
-// Ang tatlong required na text box.
-const CUSTOMER_BOXES = ["customerName", "contactNumber", "orderNumber"];
+// Ang mga required na kahon.
+const REQUIRED_BOXES = ["customerName", "contactNumber"];
 
 /**
- * Gawing pula ang isang text box (o alisin ang pula).
+ * Gawing pula ang isang kahon (o alisin ang pula).
  */
 function markInvalid(elementId, isInvalid) {
     const box = document.getElementById(elementId);
+    if (!box) {
+        return;
+    }
     if (isInvalid) {
         box.classList.add("invalid");
     } else {
@@ -109,13 +163,13 @@ function markInvalid(elementId, isInvalid) {
     }
 }
 
-/**
- * Alisin ang pula sa lahat ng customer text box.
- */
+/** Alisin ang pula sa lahat ng kahon. */
 function clearHighlights() {
-    for (let i = 0; i < CUSTOMER_BOXES.length; i++) {
-        markInvalid(CUSTOMER_BOXES[i], false);
+    for (let i = 0; i < REQUIRED_BOXES.length; i++) {
+        markInvalid(REQUIRED_BOXES[i], false);
     }
+    markInvalid("cashierSelect", false);
+    markInvalid("amountReceived", false);
 }
 
 /**
@@ -128,7 +182,7 @@ function showMessage(text, type) {
     notice.textContent = text;
     notice.className   = "form-notice";
 
-    if (text != "") {
+    if (text !== "") {
         notice.classList.add(type);
 
         // Para umuga nang bahagya ang mensahe at mapansin.
@@ -145,12 +199,66 @@ function clearMessage() {
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 4: Validation ng quantity (numero lang, walang negatibo)
+   BAHAGI 4: Cashier on Duty
+   --------------------------------------------------------------------- */
+
+/**
+ * Kapag pumili ng cashier, ipakita ang Employee ID, Position, at Shift.
+ * Ito rin ang lumalabas sa resibo.
+ */
+function showCashierDetails() {
+    const select = document.getElementById("cashierSelect");
+    const option = select.options[select.selectedIndex];
+
+    const hasCashier = select.value !== "";
+
+    document.getElementById("cashierCode").textContent =
+        hasCashier ? option.dataset.code : "—";
+    document.getElementById("cashierPosition").textContent =
+        hasCashier ? option.dataset.position : "—";
+    document.getElementById("cashierShift").textContent =
+        hasCashier ? option.dataset.shift : "—";
+
+    if (hasCashier) {
+        markInvalid("cashierSelect", false);
+    }
+}
+
+
+/* ---------------------------------------------------------------------
+   BAHAGI 5: Automatic na Order Number
+   --------------------------------------------------------------------- */
+
+/**
+ * Kunin sa PHP ang SUSUNOD na order number, tapos ipakita sa screen.
+ * Tumatakbo ito pagkabukas ng pahina at pagkatapos ng bawat bill.
+ */
+async function loadOrderNumber() {
+    const box = document.getElementById("orderNumber");
+
+    const result = await sendToServer("api/next_order_number.php", {});
+
+    if (result.ok) {
+        box.textContent = result.order_number;
+    } else {
+        box.textContent = "—";
+    }
+}
+
+/** Itakda ang ipinapakitang Order Number. */
+function setOrderNumber(orderNumber) {
+    document.getElementById("orderNumber").textContent = orderNumber;
+}
+
+
+/* ---------------------------------------------------------------------
+   BAHAGI 6: Validation ng quantity (numero lang, hindi lalampas sa stock)
    --------------------------------------------------------------------- */
 
 /**
  * Linisin ang laman ng quantity box.
- * Tinatanggal ang letra, minus sign, at tuldok.
+ * Tinatanggal ang letra, minus sign, at tuldok — at hindi pinapayagang
+ * lumampas sa natitirang STOCK.
  */
 function cleanQuantity(box) {
     let value = box.value;
@@ -161,9 +269,12 @@ function cleanQuantity(box) {
     // Alisin ang sobrang zero sa unahan (halimbawa: 007 => 7).
     value = value.replace(/^0+(?=[0-9])/, "");
 
-    // Huwag hayaang lumampas sa 9999.
-    if (value != "" && Number(value) > 9999) {
-        value = "9999";
+    // Huwag hayaang lumampas sa natitirang stock.
+    const stock = Number(box.dataset.stock || 0);
+
+    if (value !== "" && Number(value) > stock) {
+        value = String(stock);
+        showMessage("Only " + stock + " left in stock for that item.", "err");
     }
 
     box.value = value;
@@ -203,7 +314,7 @@ function setupQuantityBoxes() {
 
         // 3) Kapag walang laman pagkaalis ng cursor, gawing 0.
         box.addEventListener("blur", function () {
-            if (box.value == "") {
+            if (box.value === "") {
                 box.value = "0";
             }
         });
@@ -212,40 +323,114 @@ function setupQuantityBoxes() {
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 5: Pagpapakita ng resulta sa Bill Transactions
+   BAHAGI 7: Payment Method at Discount
+   --------------------------------------------------------------------- */
+
+/**
+ * Kapag GCash o Card ang napili, EKSAKTO ang bayad — kaya hindi na
+ * kailangang mag-type ng Amount Received at walang sukli.
+ * Sa Cash lang ito binubuksan.
+ */
+function updatePaymentMode() {
+    const method   = getPaymentMethod();
+    const amount   = document.getElementById("amountReceived");
+    const note     = document.getElementById("amountNote");
+    const isCash   = method === "Cash";
+
+    amount.disabled = !isCash;
+
+    if (isCash) {
+        amount.placeholder = "0.00";
+        note.textContent   = "Cash payment — enter the amount handed over.";
+    } else {
+        amount.value       = "";
+        amount.placeholder = "Exact amount";
+        note.textContent   = method + " payment — the exact amount is charged, so there is no change.";
+        markInvalid("amountReceived", false);
+    }
+}
+
+/**
+ * Linisin ang Amount Received: numero at isang tuldok lang.
+ */
+function cleanAmount(box) {
+    let value = box.value.replace(/[^0-9.]/g, "");
+
+    // Isang tuldok lang ang pinapayagan.
+    const firstDot = value.indexOf(".");
+    if (firstDot !== -1) {
+        value = value.slice(0, firstDot + 1) + value.slice(firstDot + 1).replace(/\./g, "");
+    }
+
+    box.value = value;
+}
+
+
+/* ---------------------------------------------------------------------
+   BAHAGI 8: Pagpapakita ng resulta sa Bill Transactions
    --------------------------------------------------------------------- */
 
 /**
  * Ilagay sa screen ang resulta ng komputasyon.
  */
 function showSummary(summary) {
-    const totals = summary.category_totals;
-    const taxes  = summary.category_taxes;
+    // ---- Total ng bawat kategorya ----
+    const totalBoxes = document.querySelectorAll("[data-cat-total]");
 
-    // Total ng bawat kategorya
-    document.getElementById("totBeauty").textContent   = peso(totals["Beauty & Personal Care"]);
-    document.getElementById("totGrocery").textContent  = peso(totals["Grocery"]);
-    document.getElementById("totBeverage").textContent = peso(totals["Beverages"]);
+    for (let i = 0; i < totalBoxes.length; i++) {
+        const box    = totalBoxes[i];
+        const amount = summary.category_totals[box.dataset.catTotal] || 0;
+        box.textContent = peso(amount);
+    }
 
-    // Buwis ng bawat kategorya
-    document.getElementById("taxBeauty").textContent   = peso(taxes["Beauty & Personal Care"]);
-    document.getElementById("taxGrocery").textContent  = peso(taxes["Grocery"]);
-    document.getElementById("taxBeverage").textContent = peso(taxes["Beverages"]);
+    document.getElementById("totalItems").textContent = summary.total_quantity;
 
-    // Kabuuang komputasyon
-    document.getElementById("subtotal").textContent   = peso(summary.subtotal);
-    document.getElementById("totalTax").textContent   = peso(summary.total_tax);
-    document.getElementById("grandTotal").textContent = peso(summary.grand_total);
+    // ---- Komputasyon ----
+    document.getElementById("subtotal").textContent     = peso(summary.subtotal);
+    document.getElementById("discountOut").textContent  = "- " + peso(summary.discount_amount);
+    document.getElementById("vatableSales").textContent = peso(summary.vatable_sales);
+    document.getElementById("vatAmount").textContent    = peso(summary.vat);
+    document.getElementById("grandTotal").textContent   = peso(summary.grand_total);
+
+    // Isulat kung anong discount ang ginamit.
+    const discountLabel = document.getElementById("discountLabel");
+    if (summary.discount_type === "None") {
+        discountLabel.textContent = "Discount";
+    } else {
+        discountLabel.textContent =
+            "Discount (" + summary.discount_type + " " + Math.round(summary.discount_rate * 100) + "%)";
+    }
+
+    // ---- Bayad ----
+    document.getElementById("methodOut").textContent   = summary.payment_method;
+    document.getElementById("receivedOut").textContent = peso(summary.amount_received);
+    document.getElementById("changeDue").textContent   = peso(summary.change_due);
+
+    // ---- Discount Amount sa Payment card ----
+    document.getElementById("discountAmount").textContent = peso(summary.discount_amount);
+}
+
+/** Ibalik ang lahat ng resulta sa ₱0.00. */
+function resetSummary() {
+    const outputs = document.querySelectorAll("#billTransactions output");
+    for (let i = 0; i < outputs.length; i++) {
+        outputs[i].textContent = "₱0.00";
+    }
+
+    document.getElementById("totalItems").textContent     = "0";
+    document.getElementById("methodOut").textContent      = getPaymentMethod();
+    document.getElementById("discountLabel").textContent  = "Discount";
+    document.getElementById("discountAmount").textContent = "₱0.00";
 }
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 6: Order History (mga lumang order na nakita ng FIND)
+   BAHAGI 9: Order History (mga lumang order na nakita ng FIND)
    --------------------------------------------------------------------- */
 
 /**
  * Gawing madaling basahin ang petsa mula sa database.
- * Halimbawa: "2026-07-24 15:08:00"  =>  "Jul 24, 2026 3:08 PM"
+ * Halimbawa: "2026-07-28 15:08:00"  =>  "Jul 28, 2026, 3:08 PM"
  */
 function readableDate(text) {
     if (!text) {
@@ -271,7 +456,7 @@ function readableDate(text) {
 /** Itago ang Order History card. */
 function hideHistory() {
     document.getElementById("orderHistory").classList.add("hidden");
-    document.getElementById("historyList").innerHTML = "";
+    document.getElementById("historyList").innerHTML  = "";
     document.getElementById("historyFor").textContent = "";
 }
 
@@ -282,12 +467,12 @@ function buildHistoryCard(order) {
     const box = document.createElement("div");
     box.className = "history-item";
 
-    // ---- Ulo: Order # at petsa ----
+    // ---- Ulo: Order No. at petsa ----
     const head = document.createElement("div");
     head.className = "history-head";
 
     const label = document.createElement("strong");
-    label.textContent = "Order #" + order.order_id;
+    label.textContent = order.order_number || ("Order #" + order.order_id);
 
     const when = document.createElement("span");
     when.className   = "history-date";
@@ -296,6 +481,22 @@ function buildHistoryCard(order) {
     head.appendChild(label);
     head.appendChild(when);
     box.appendChild(head);
+
+    // ---- Sinong cashier at anong bayad ----
+    const meta = document.createElement("div");
+    meta.className = "history-meta";
+
+    const parts = [];
+    if (order.cashier && order.cashier.employee_name) {
+        parts.push("Cashier: " + order.cashier.employee_name +
+                   " (" + order.cashier.employee_code + ")");
+    }
+    parts.push("Paid by " + order.payment_method);
+    if (order.discount_type && order.discount_type !== "None") {
+        parts.push(order.discount_type + " discount");
+    }
+    meta.textContent = parts.join("  •  ");
+    box.appendChild(meta);
 
     // ---- Talahanayan ng mga binili ----
     const table = document.createElement("table");
@@ -338,7 +539,8 @@ function buildHistoryCard(order) {
     totals.className = "history-totals";
     totals.innerHTML =
         "<span>Subtotal: <b>" + peso(order.subtotal) + "</b></span>" +
-        "<span>Tax: <b>" + peso(order.total_tax) + "</b></span>" +
+        "<span>Discount: <b>" + peso(order.discount_amount) + "</b></span>" +
+        "<span>VAT: <b>" + peso(order.total_tax) + "</b></span>" +
         '<span class="grand">Grand Total: <b>' + peso(order.grand_total) + "</b></span>";
 
     box.appendChild(totals);
@@ -361,9 +563,9 @@ function showHistory(customer, orders) {
     }
 
     // Sino ang customer at ilan ang order niya.
-    if (orders.length == 0) {
+    if (orders.length === 0) {
         info.textContent = customer.customer_name + " — no past orders yet.";
-    } else if (orders.length == 1) {
+    } else if (orders.length === 1) {
         info.textContent = customer.customer_name + " — 1 past order.";
     } else {
         info.textContent = customer.customer_name + " — " + orders.length + " past orders.";
@@ -378,8 +580,33 @@ function showHistory(customer, orders) {
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 7: Ang mga BUTTON
+   BAHAGI 10: Ang mga BUTTON
    --------------------------------------------------------------------- */
+
+/**
+ * Tingnan kung kompleto ang kailangan bago mag-bill.
+ * Ibabalik ang true kapag okay na lahat.
+ */
+function validateBeforeBilling() {
+    const customer = getCustomer();
+    const cashier  = getCashierId();
+
+    markInvalid("customerName",  customer.name === "");
+    markInvalid("contactNumber", customer.contact === "");
+    markInvalid("cashierSelect", cashier === 0);
+
+    if (cashier === 0) {
+        showMessage("Please select the Cashier on Duty first.", "err");
+        return false;
+    }
+
+    if (customer.name === "" || customer.contact === "") {
+        showMessage("Please complete the highlighted customer fields before billing.", "err");
+        return false;
+    }
+
+    return true;
+}
 
 /**
  * FIND BUTTON
@@ -388,19 +615,12 @@ function showHistory(customer, orders) {
  */
 async function clickFind() {
     const contactBox = document.getElementById("contactNumber");
-    const orderBox   = document.getElementById("orderNumber");
-
-    // Alin man ang may laman, iyon ang hahanapin.
-    let keyword = contactBox.value.trim();
-    if (keyword == "") {
-        keyword = orderBox.value.trim();
-    }
+    const keyword    = contactBox.value.trim();
 
     // Walang inilagay.
-    if (keyword == "") {
+    if (keyword === "") {
         markInvalid("contactNumber", true);
-        markInvalid("orderNumber", true);
-        showMessage("Enter a Contact Number or Order Number to search.", "err");
+        showMessage("Enter a Contact Number (or an Order Number from a receipt) to search.", "err");
         contactBox.focus();
         return;
     }
@@ -411,16 +631,14 @@ async function clickFind() {
     // Walang nakita.
     if (!result.ok) {
         markInvalid("contactNumber", true);
-        markInvalid("orderNumber", true);
         showMessage(result.error, "err");
         hideHistory();
         return;
     }
 
-    // May nakita - punuin ang tatlong text box.
+    // May nakita - punuin ang dalawang kahon.
     document.getElementById("customerName").value  = result.customer.customer_name;
     document.getElementById("contactNumber").value = result.customer.contact_number;
-    document.getElementById("orderNumber").value   = result.customer.order_number;
 
     // Ipakita ang mga lumang order niya.
     const orders = result.orders || [];
@@ -428,11 +646,11 @@ async function clickFind() {
 
     clearHighlights();
 
-    if (orders.length == 0) {
+    if (orders.length === 0) {
         showMessage("✔ Customer found — details loaded. No past orders yet.", "ok");
     } else {
         showMessage("✔ Customer found — details loaded. " + orders.length +
-                    " past order" + (orders.length == 1 ? "" : "s") + " below.", "ok");
+                    " past order" + (orders.length === 1 ? "" : "s") + " below.", "ok");
         document.getElementById("orderHistory").scrollIntoView({
             behavior: "smooth",
             block: "start"
@@ -447,20 +665,17 @@ async function clickFind() {
 async function clickAddCustomer() {
     const customer = getCustomer();
 
-    // Tingnan kung kompleto ang tatlong field.
-    markInvalid("customerName",  customer.name == "");
-    markInvalid("contactNumber", customer.contact == "");
-    markInvalid("orderNumber",   customer.order_number == "");
+    markInvalid("customerName",  customer.name === "");
+    markInvalid("contactNumber", customer.contact === "");
 
-    if (customer.name == "" || customer.contact == "" || customer.order_number == "") {
-        showMessage("Please complete Customer Name, Contact Number, and Order Number to add a customer.", "err");
+    if (customer.name === "" || customer.contact === "") {
+        showMessage("Please complete the Customer Name and Contact Number to add a customer.", "err");
         return;
     }
 
     const result = await sendToServer("api/add_customer.php", {
-        name:         customer.name,
-        contact:      customer.contact,
-        order_number: customer.order_number
+        name:    customer.name,
+        contact: customer.contact
     });
 
     if (!result.ok) {
@@ -474,17 +689,17 @@ async function clickAddCustomer() {
 
 /**
  * TOTAL BUTTON
- * Kinakalkula ang total ng bawat kategorya (hindi pa nagse-save).
+ * Kinakalkula ang bill (hindi pa nagse-save).
  */
 async function clickTotal() {
     const cart = getCart();
 
-    if (cart.length == 0) {
+    if (cart.length === 0) {
         showMessage("Enter at least one quantity first.", "err");
         return null;
     }
 
-    const result = await sendToServer("api/calculate.php", { cart: cart });
+    const result = await sendToServer("api/calculate.php", buildPayload());
 
     if (!result.ok) {
         showMessage(result.error, "err");
@@ -492,44 +707,39 @@ async function clickTotal() {
     }
 
     showSummary(result.summary);
-    clearMessage();
+
+    // Paalala kapag kulang ang cash na ibinigay.
+    if (!result.summary.is_paid) {
+        markInvalid("amountReceived", true);
+        showMessage("Amount Received is less than the Grand Total of " +
+                    peso(result.summary.grand_total) + ".", "err");
+    } else {
+        markInvalid("amountReceived", false);
+        clearMessage();
+    }
+
     return result.summary;
 }
 
 /**
  * BILL BUTTON
- * Kinakalkula ang bill AT sini-save sa database.
+ * Kinakalkula ang bill, sini-save sa database, kumukuha ng automatic
+ * na order number, at ipinapakita ang resibo.
  */
 async function clickBill() {
     const cart = getCart();
 
-    if (cart.length == 0) {
+    if (cart.length === 0) {
         showMessage("Enter at least one quantity first.", "err");
         return;
     }
 
-    // Tingnan kung kompleto ang detalye ng customer.
-    const customer = getCustomer();
-    let hasMissing = false;
-
-    markInvalid("customerName", customer.name == "");
-    markInvalid("contactNumber", customer.contact == "");
-    markInvalid("orderNumber", customer.order_number == "");
-
-    if (customer.name == "" || customer.contact == "" || customer.order_number == "") {
-        hasMissing = true;
-    }
-
-    if (hasMissing) {
-        showMessage("Please complete the highlighted customer fields before billing.", "err");
+    if (!validateBeforeBilling()) {
         return;
     }
 
     // Ipadala sa PHP para i-save.
-    const result = await sendToServer("api/save_order.php", {
-        customer: customer,
-        cart: cart
-    });
+    const result = await sendToServer("api/save_order.php", buildPayload());
 
     if (!result.ok) {
         showMessage(result.error, "err");
@@ -538,49 +748,50 @@ async function clickBill() {
 
     showSummary(result.summary);
     clearHighlights();
-    showMessage("✔ Bill saved — Order #" + result.order_id, "ok");
+
+    // Ito na ang TOTOONG order number ng transaksyong ito.
+    setOrderNumber(result.order_number);
+    showMessage("✔ Bill saved — Order No. " + result.order_number, "ok");
+
+    // Ipakita agad ang resibo.
+    openModal("Official Receipt — " + result.order_number, result.receipt_html, false);
 
     // Kung nakabukas ang Order History, i-refresh para kasama ang bagong order.
-    if (!document.getElementById("orderHistory").classList.contains("hidden")) {
+    const history = document.getElementById("orderHistory");
+    if (!history.classList.contains("hidden")) {
         const fresh = await sendToServer("api/find_customer.php", {
-            keyword: customer.order_number
+            keyword: getCustomer().contact
         });
         if (fresh.ok) {
             showHistory(fresh.customer, fresh.orders || []);
         }
     }
-
-    // I-scroll pababa para makita ang resulta.
-    document.getElementById("billTransactions").scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-    });
 }
 
 /**
- * Kunin sa PHP ang teksto ng resibo.
+ * Kunin sa PHP ang resibo (HTML na may logo at larawan).
  */
-async function getReceiptText() {
+async function getReceipt() {
     const cart = getCart();
 
-    if (cart.length == 0) {
+    if (cart.length === 0) {
         showMessage("Enter at least one quantity first.", "err");
         return null;
     }
 
-    const result = await sendToServer("api/email.php", {
+    const result = await sendToServer("api/email.php", buildPayload({
         to: "",
-        customer: getCustomer(),
-        cart: cart
-    });
+        order_number: getOrderNumber()
+    }));
 
     if (!result.ok) {
         showMessage(result.error, "err");
         return null;
     }
 
+    showSummary(result.summary);
     clearMessage();
-    return result.body;
+    return result;
 }
 
 /**
@@ -588,18 +799,12 @@ async function getReceiptText() {
  * Nagpapakita ng resibo sa pop-up bago i-print.
  */
 async function clickPrint() {
-    // I-update muna ang Bill Transactions.
-    const summary = await clickTotal();
-    if (summary == null) {
+    const receipt = await getReceipt();
+    if (receipt === null) {
         return;
     }
 
-    const receipt = await getReceiptText();
-    if (receipt == null) {
-        return;
-    }
-
-    openModal("Print Receipt", receipt, false);
+    openModal("Print Receipt — " + receipt.order_number, receipt.receipt_html, false);
 }
 
 /**
@@ -607,12 +812,12 @@ async function clickPrint() {
  * Nagpapakita ng resibo at ng kahon para sa e-mail address.
  */
 async function clickEmail() {
-    const receipt = await getReceiptText();
-    if (receipt == null) {
+    const receipt = await getReceipt();
+    if (receipt === null) {
         return;
     }
 
-    openModal("E-Mail Receipt", receipt, true);
+    openModal("E-Mail Receipt — " + receipt.order_number, receipt.receipt_html, true);
 }
 
 /**
@@ -627,25 +832,24 @@ async function clickSendEmail() {
     // Tingnan kung tama ang porma ng e-mail address.
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (address == "" || !emailPattern.test(address)) {
+    if (address === "" || !emailPattern.test(address)) {
         status.textContent = "Please enter a valid e-mail address.";
         status.className   = "email-status err";
         return;
     }
 
     // ---- Ipakita ang loader habang ipinapadala ----
-    sendBtn.disabled  = true;
+    sendBtn.disabled    = true;
     sendBtn.textContent = "Sending...";
-    status.className  = "email-status load";
-    status.innerHTML  = '<span class="email-spinner"></span> Sending receipt to ' + address + " ...";
+    status.className    = "email-status load";
+    status.innerHTML    = '<span class="email-spinner"></span> Sending receipt to ' + address + " ...";
 
     let result;
     try {
-        result = await sendToServer("api/email.php", {
+        result = await sendToServer("api/email.php", buildPayload({
             to: address,
-            customer: getCustomer(),
-            cart: getCart()
-        });
+            order_number: getOrderNumber()
+        }));
     } finally {
         // Ibalik ang button kahit anong mangyari.
         sendBtn.disabled    = false;
@@ -668,11 +872,10 @@ async function clickSendEmail() {
  * CLEAR BUTTON
  * Binubura ang lahat ng inilagay at ibinabalik sa ₱0.00.
  */
-function clickClear() {
+async function clickClear() {
     // Burahin ang customer details.
     document.getElementById("customerName").value  = "";
     document.getElementById("contactNumber").value = "";
-    document.getElementById("orderNumber").value   = "";
 
     // Ibalik sa 0 ang lahat ng quantity.
     const qtyBoxes = document.querySelectorAll(".qty");
@@ -680,30 +883,36 @@ function clickClear() {
         qtyBoxes[i].value = "0";
     }
 
-    // Ibalik sa ₱0.00 ang Bill Transactions.
-    const outputs = document.querySelectorAll("output");
-    for (let i = 0; i < outputs.length; i++) {
-        outputs[i].textContent = "₱0.00";
-    }
+    // Ibalik ang payment at discount sa dati.
+    document.querySelector('input[name="paymentMethod"][value="Cash"]').checked = true;
+    document.getElementById("amountReceived").value = "";
+    document.getElementById("discountType").value   = "None";
+    updatePaymentMode();
 
+    resetSummary();
     clearHighlights();
     clearMessage();
     hideHistory();
     closeModal();
+
+    // Kumuha ng bagong order number para sa susunod na customer.
+    await loadOrderNumber();
 }
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 8: Ang pop-up (modal) ng resibo
+   BAHAGI 11: Ang pop-up (modal) ng resibo
    --------------------------------------------------------------------- */
 
 /**
  * Buksan ang pop-up.
  * showEmailBox = true kung may kahon para sa e-mail address.
  */
-function openModal(title, receiptText, showEmailBox) {
+function openModal(title, receiptHtml, showEmailBox) {
     document.getElementById("modalTitle").textContent = title;
-    document.getElementById("modalBody").textContent  = receiptText;
+
+    // Ang resibo ay HTML na ginawa ng Receipt class sa PHP.
+    document.getElementById("modalBody").innerHTML = receiptHtml;
 
     const emailControls = document.getElementById("emailControls");
     if (showEmailBox) {
@@ -728,7 +937,7 @@ function closeModal() {
 
 
 /* ---------------------------------------------------------------------
-   BAHAGI 9: Ikabit ang lahat ng button
+   BAHAGI 12: Ikabit ang lahat ng button
    Tumatakbo ito kapag handa na ang buong webpage.
    --------------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", function () {
@@ -736,16 +945,38 @@ document.addEventListener("DOMContentLoaded", function () {
     // Validation ng quantity.
     setupQuantityBoxes();
 
+    // Kunin agad ang automatic na Order Number.
+    loadOrderNumber();
+
+    // Cashier on Duty.
+    document.getElementById("cashierSelect").addEventListener("change", showCashierDetails);
+
     // Alisin ang pulang highlight kapag nag-type na ang user.
-    for (let i = 0; i < CUSTOMER_BOXES.length; i++) {
-        const boxId = CUSTOMER_BOXES[i];
+    for (let i = 0; i < REQUIRED_BOXES.length; i++) {
+        const boxId = REQUIRED_BOXES[i];
         document.getElementById(boxId).addEventListener("input", function () {
             markInvalid(boxId, false);
             clearMessage();
         });
     }
 
-    // Ang anim na pangunahing button.
+    // Payment method (Cash / GCash / Card).
+    const methods = document.querySelectorAll('input[name="paymentMethod"]');
+    for (let i = 0; i < methods.length; i++) {
+        methods[i].addEventListener("change", function () {
+            updatePaymentMode();
+            document.getElementById("methodOut").textContent = getPaymentMethod();
+        });
+    }
+
+    // Amount Received - numero lang.
+    const amountBox = document.getElementById("amountReceived");
+    amountBox.addEventListener("input", function () {
+        cleanAmount(amountBox);
+        markInvalid("amountReceived", false);
+    });
+
+    // Ang mga pangunahing button.
     document.getElementById("btnFind").addEventListener("click", clickFind);
     document.getElementById("btnAddCustomer").addEventListener("click", clickAddCustomer);
     document.getElementById("btnTotal").addEventListener("click", clickTotal);
@@ -764,15 +995,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Isara ang pop-up kapag pinindot ang labas nito.
     document.getElementById("receiptModal").addEventListener("click", function (event) {
-        if (event.target.id == "receiptModal") {
+        if (event.target.id === "receiptModal") {
             closeModal();
         }
     });
 
     // Isara ang pop-up kapag pinindot ang Escape key.
     document.addEventListener("keydown", function (event) {
-        if (event.key == "Escape") {
+        if (event.key === "Escape") {
             closeModal();
         }
     });
+
+    // Simulan sa tamang mode ang Amount Received.
+    updatePaymentMode();
 });

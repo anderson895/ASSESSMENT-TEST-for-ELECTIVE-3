@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Mineral Water">
+  <rect width="96" height="96" rx="18" fill="#E4F3FD"/>
+  <rect x="42" y="12" width="12" height="10" rx="3" fill="#1B87BD"/>
+  <path d="M41 22h14l7 12v40a8 8 0 0 1-8 8H42a8 8 0 0 1-8-8V34z" fill="#CFEAF9"/>
+  <path d="M34 48h28v26a8 8 0 0 1-8 8H42a8 8 0 0 1-8-8z" fill="#7FCDF3"/>
+  <rect x="34" y="36" width="28" height="12" rx="3" fill="#2FA3DC"/>
+  <circle cx="44" cy="62" r="3" fill="#E4F3FD"/>
+  <circle cx="53" cy="70" r="2.2" fill="#E4F3FD"/>
+</svg>
