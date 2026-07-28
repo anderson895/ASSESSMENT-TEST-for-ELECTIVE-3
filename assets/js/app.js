@@ -281,6 +281,58 @@ function cleanQuantity(box) {
 }
 
 /**
+ * Kulayan ang buong row kapag may binili rito, at buksan o isara
+ * ang minus/plus na button ayon sa laman.
+ */
+function refreshQtyRow(box) {
+    const quantity = Number(box.value || 0);
+    const stock    = Number(box.dataset.stock || 0);
+    const row      = box.closest("tr");
+    const wrap     = box.closest(".qty-wrap");
+
+    if (row !== null) {
+        if (quantity > 0) {
+            row.classList.add("has-qty");
+        } else {
+            row.classList.remove("has-qty");
+        }
+    }
+
+    // Walang stock - manatiling sarado ang dalawang button.
+    if (wrap === null || stock <= 0) {
+        return;
+    }
+
+    const minus = wrap.querySelector(".qty-minus");
+    const plus  = wrap.querySelector(".qty-plus");
+
+    if (minus !== null) { minus.disabled = quantity <= 0; }
+    if (plus  !== null) { plus.disabled  = quantity >= stock; }
+}
+
+/**
+ * Dagdagan o bawasan ng isa ang quantity (ang minus at plus na button).
+ */
+function stepQuantity(box, change) {
+    const stock    = Number(box.dataset.stock || 0);
+    let   quantity = Number(box.value || 0) + change;
+
+    if (quantity < 0) {
+        quantity = 0;
+    }
+
+    if (quantity > stock) {
+        quantity = stock;
+        showMessage("Only " + stock + " left in stock for that item.", "err");
+    }
+
+    box.value = String(quantity);
+
+    refreshQtyRow(box);
+    scheduleRefresh();
+}
+
+/**
  * Ikabit ang validation sa lahat ng quantity box.
  */
 function setupQuantityBoxes() {
@@ -288,6 +340,24 @@ function setupQuantityBoxes() {
 
     for (let i = 0; i < qtyBoxes.length; i++) {
         const box = qtyBoxes[i];
+
+        // ---- Ang minus at plus na button sa tabi ng kahon ----
+        const wrap = box.closest(".qty-wrap");
+
+        if (wrap !== null) {
+            const minus = wrap.querySelector(".qty-minus");
+            const plus  = wrap.querySelector(".qty-plus");
+
+            if (minus !== null) {
+                minus.addEventListener("click", function () { stepQuantity(box, -1); });
+            }
+            if (plus !== null) {
+                plus.addEventListener("click", function () { stepQuantity(box, 1); });
+            }
+        }
+
+        // Itakda ang tamang anyo sa simula pa lang.
+        refreshQtyRow(box);
 
         // 1) Harangin agad ang bawal na pindot (letra, minus, tuldok).
         box.addEventListener("keydown", function (event) {
@@ -307,15 +377,19 @@ function setupQuantityBoxes() {
             }
         });
 
-        // 2) Linisin ang laman tuwing may binabago.
+        // 2) Linisin ang laman tuwing may binabago, tapos kalkulahin ulit.
         box.addEventListener("input", function () {
             cleanQuantity(box);
+            refreshQtyRow(box);
+            scheduleRefresh();
         });
 
         // 3) Kapag walang laman pagkaalis ng cursor, gawing 0.
         box.addEventListener("blur", function () {
             if (box.value === "") {
                 box.value = "0";
+                refreshQtyRow(box);
+                scheduleRefresh();
             }
         });
     }
@@ -408,6 +482,10 @@ function showSummary(summary) {
 
     // ---- Discount Amount sa Payment card ----
     document.getElementById("discountAmount").textContent = peso(summary.discount_amount);
+
+    // ---- Listahan ng item at ang sticky bar sa ilalim ----
+    renderCart(summary.items || []);
+    updateLiveBar(summary.grand_total, summary.total_quantity);
 }
 
 /** Ibalik ang lahat ng resulta sa ₱0.00. */
@@ -421,6 +499,139 @@ function resetSummary() {
     document.getElementById("methodOut").textContent      = getPaymentMethod();
     document.getElementById("discountLabel").textContent  = "Discount";
     document.getElementById("discountAmount").textContent = "₱0.00";
+
+    renderCart([]);
+    updateLiveBar(0, 0);
+}
+
+
+/* ---------------------------------------------------------------------
+   BAHAGI 8-B: Listahan ng napiling item + ang sticky bar sa ilalim
+   --------------------------------------------------------------------- */
+
+/**
+ * Isulat ang listahan ng napiling produkto sa Step 4.
+ * Kapag walang laman, ipapakita ang paalalang "No items selected yet".
+ */
+function renderCart(items) {
+    const list  = document.getElementById("cartList");
+    const empty = document.getElementById("cartEmpty");
+
+    // Walang binili pa.
+    if (items.length === 0) {
+        list.innerHTML = "";
+        list.classList.add("hidden");
+        empty.classList.remove("hidden");
+        return;
+    }
+
+    let rows = "";
+
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
+        rows += '<li>' +
+                    '<img src="' + item.image + '" alt="" ' +
+                        'onerror="this.src=\'assets/img/products/placeholder.svg\'">' +
+                    '<span class="cart-name">' + item.product_name + '</span>' +
+                    '<span class="cart-qty">' + item.quantity + ' &times; ' + peso(item.price) + '</span>' +
+                    '<span class="cart-amount">' + peso(item.total_price) + '</span>' +
+                '</li>';
+    }
+
+    list.innerHTML = rows;
+    list.classList.remove("hidden");
+    empty.classList.add("hidden");
+}
+
+/**
+ * I-update ang Grand Total at bilang ng item sa sticky bar sa ilalim.
+ */
+function updateLiveBar(grandTotal, totalQuantity) {
+    document.getElementById("liveGrandTotal").textContent = peso(grandTotal);
+
+    const label = document.getElementById("liveItems");
+
+    if (!totalQuantity || totalQuantity === 0) {
+        label.textContent = "No items yet";
+    } else {
+        label.textContent = totalQuantity + " item" + (totalQuantity === 1 ? "" : "s") + " in this order";
+    }
+}
+
+/**
+ * Buksan o isara ang PRINT at E-MAIL na button.
+ *
+ * Sarado ito hangga't walang naka-save na bill — ito ang dahilan kung
+ * bakit nakakalito noon: puwede mong pindutin ang Print bago pa may bill.
+ */
+function setBilled(isBilled) {
+    const printButton = document.getElementById("btnPrint");
+    const emailButton = document.getElementById("btnEmail");
+
+    printButton.disabled = !isBilled;
+    emailButton.disabled = !isBilled;
+
+    const tip = isBilled ? "" : "Save the bill first";
+
+    printButton.title = tip;
+    emailButton.title = tip;
+}
+
+
+/* ---------------------------------------------------------------------
+   BAHAGI 8-C: LIVE na pagkalkula
+   ---------------------------------------------------------------------
+   Hindi na kailangang pindutin ang TOTAL. Tuwing may binabago sa
+   quantity, discount, o bayad, tinatawag natin ang api/calculate.php
+   para sabihin ang bagong total.
+
+   Ang server pa rin ang nagkukuwenta — hindi natin kinokopya ang
+   pormula sa JavaScript, para walang pagkakaiba ang lalabas sa resibo.
+   --------------------------------------------------------------------- */
+
+/** Timer para hindi tumawag sa server sa bawat pindot ng daliri. */
+let refreshTimer = null;
+
+/**
+ * Kalkulahin ulit ang total — TAHIMIK (walang pulang mensahe).
+ * Ang babala tungkol sa kulang na bayad ay sa TOTAL at BILL na lang.
+ */
+async function refreshTotals() {
+    const cart = getCart();
+
+    // Walang binili - ibalik sa zero at huwag nang tumawag sa server.
+    if (cart.length === 0) {
+        resetSummary();
+        return;
+    }
+
+    let result;
+
+    try {
+        result = await sendToServer("api/calculate.php", buildPayload());
+    } catch (error) {
+        return;   // Tahimik lang - hindi ito hihinto sa pag-bill.
+    }
+
+    if (result && result.ok) {
+        showSummary(result.summary);
+    }
+}
+
+/**
+ * Maghintay muna ng 350ms bago tumawag sa server, para kahit
+ * mabilis mag-type ang cashier ay isang tawag lang ang mangyayari.
+ */
+function scheduleRefresh() {
+    if (refreshTimer !== null) {
+        clearTimeout(refreshTimer);
+    }
+
+    refreshTimer = setTimeout(function () {
+        refreshTimer = null;
+        refreshTotals();
+    }, 350);
 }
 
 
@@ -753,6 +964,9 @@ async function clickBill() {
     setOrderNumber(result.order_number);
     showMessage("✔ Bill saved — Order No. " + result.order_number, "ok");
 
+    // May bill na - kaya puwede nang i-print at i-e-mail.
+    setBilled(true);
+
     // Ipakita agad ang resibo.
     openModal("Official Receipt — " + result.order_number, result.receipt_html, false);
 
@@ -889,11 +1103,20 @@ async function clickClear() {
     document.getElementById("discountType").value   = "None";
     updatePaymentMode();
 
+    // Alisin ang highlight at ibalik ang minus/plus na button.
+    const qtyBoxes2 = document.querySelectorAll(".qty");
+    for (let i = 0; i < qtyBoxes2.length; i++) {
+        refreshQtyRow(qtyBoxes2[i]);
+    }
+
     resetSummary();
     clearHighlights();
     clearMessage();
     hideHistory();
     closeModal();
+
+    // Bagong transaksyon - sarado muli ang Print at E-Mail.
+    setBilled(false);
 
     // Kumuha ng bagong order number para sa susunod na customer.
     await loadOrderNumber();
@@ -966,6 +1189,7 @@ document.addEventListener("DOMContentLoaded", function () {
         methods[i].addEventListener("change", function () {
             updatePaymentMode();
             document.getElementById("methodOut").textContent = getPaymentMethod();
+            scheduleRefresh();
         });
     }
 
@@ -974,7 +1198,11 @@ document.addEventListener("DOMContentLoaded", function () {
     amountBox.addEventListener("input", function () {
         cleanAmount(amountBox);
         markInvalid("amountReceived", false);
+        scheduleRefresh();
     });
+
+    // Discount Type - agad na makikita ang bagong total.
+    document.getElementById("discountType").addEventListener("change", scheduleRefresh);
 
     // Ang mga pangunahing button.
     document.getElementById("btnFind").addEventListener("click", clickFind);

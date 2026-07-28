@@ -133,4 +133,155 @@ class Product
         // Kung walang naapektuhang row, ibig sabihin kulang na ang stock.
         return $stmt->rowCount() > 0;
     }
+
+    /* =================================================================
+       PAMAMAHALA NG PRODUKTO (ginagamit ng products.php)
+       ================================================================= */
+
+    /**
+     * Kunin ang listahan ng lahat ng kategorya mula sa categories table.
+     * Ito ang laman ng dropdown sa Add Product form.
+     */
+    public function categories()
+    {
+        $sql = "SELECT category_name, image
+                  FROM categories
+              ORDER BY sort_order, category_name";
+
+        return $this->db->query($sql)->fetchAll();
+    }
+
+    /**
+     * Kunin ang isang produkto gamit ang product_id.
+     * Ibabalik ang null kapag wala.
+     */
+    public function find($productId)
+    {
+        $sql = "SELECT product_id, category, product_name, price, stock, image
+                  FROM products
+                 WHERE product_id = :pid";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(':pid' => (int) $productId));
+
+        $row = $stmt->fetch();
+
+        if ($row == false) {
+            return null;
+        }
+
+        $row['price'] = (float) $row['price'];
+        $row['stock'] = (int) $row['stock'];
+
+        return $row;
+    }
+
+    /**
+     * Tingnan kung may produkto nang ganito ang pangalan sa parehong kategorya.
+     * Ang $ignoreId ay ang produktong ini-edit (para hindi nito makita ang sarili).
+     */
+    public function nameExists($category, $productName, $ignoreId = 0)
+    {
+        $sql = "SELECT product_id
+                  FROM products
+                 WHERE category     = :cat
+                   AND product_name = :name
+                   AND product_id  <> :ignore
+                 LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(
+            ':cat'    => (string) $category,
+            ':name'   => (string) $productName,
+            ':ignore' => (int) $ignoreId
+        ));
+
+        return $stmt->fetch() != false;
+    }
+
+    /**
+     * MAGDAGDAG ng bagong produkto.
+     * Ibabalik ang product_id ng bagong nagawa.
+     */
+    public function create($category, $productName, $price, $stock, $image)
+    {
+        $sql = "INSERT INTO products (category, product_name, price, stock, image)
+                VALUES (:cat, :name, :price, :stock, :image)";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(
+            ':cat'   => (string) $category,
+            ':name'  => (string) $productName,
+            ':price' => (float) $price,
+            ':stock' => (int) $stock,
+            ':image' => ($image == '' ? null : (string) $image)
+        ));
+
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * I-UPDATE ang isang produkto.
+     *
+     * Kapag ang $image ay null, hindi gagalawin ang dating larawan —
+     * para hindi mawala ang litrato kapag presyo lang ang binago.
+     */
+    public function update($productId, $category, $productName, $price, $stock, $image = null)
+    {
+        $fields = array(
+            'category'     => (string) $category,
+            'product_name' => (string) $productName,
+            'price'        => (float) $price,
+            'stock'        => (int) $stock
+        );
+
+        if ($image !== null) {
+            $fields['image'] = (string) $image;
+        }
+
+        // Buuin ang "column = :column" na bahagi ng SQL.
+        $sets   = array();
+        $params = array(':pid' => (int) $productId);
+
+        foreach ($fields as $column => $value) {
+            $sets[]                = $column . ' = :' . $column;
+            $params[':' . $column] = $value;
+        }
+
+        $sql = "UPDATE products SET " . implode(', ', $sets) . " WHERE product_id = :pid";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return true;
+    }
+
+    /**
+     * Ilang beses nang naibenta ang produktong ito?
+     *
+     * Kailangan itong tingnan bago mag-delete: ang order_items ay may
+     * FOREIGN KEY papunta sa products, kaya hindi puwedeng burahin ang
+     * produktong may kasaysayan — mawawala ang lumang resibo.
+     */
+    public function timesSold($productId)
+    {
+        $sql = "SELECT COUNT(*) FROM order_items WHERE product_id = :pid";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array(':pid' => (int) $productId));
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * BURAHIN ang produkto.
+     * Gamitin lang kapag 0 ang timesSold() — kung hindi, tanggihan sa API.
+     */
+    public function delete($productId)
+    {
+        $stmt = $this->db->prepare("DELETE FROM products WHERE product_id = :pid");
+        $stmt->execute(array(':pid' => (int) $productId));
+
+        return $stmt->rowCount() > 0;
+    }
 }

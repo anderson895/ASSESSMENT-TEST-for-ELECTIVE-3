@@ -1,8 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Eggs">
+  <defs>
+    <linearGradient id="egShell" x1=".25" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset=".55" stop-color="#FBF3E2"/>
+      <stop offset="1" stop-color="#D9C8A4"/>
+    </linearGradient>
+    <linearGradient id="egBox" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C08B4E"/>
+      <stop offset="1" stop-color="#7A5324"/>
+    </linearGradient>
+  </defs>
   <rect width="96" height="96" rx="18" fill="#E6F6EC"/>
-  <ellipse cx="36" cy="44" rx="13" ry="17" fill="#FFFFFF" stroke="#E3D9C6" stroke-width="2"/>
-  <ellipse cx="60" cy="40" rx="13" ry="17" fill="#FDF6E7" stroke="#E3D9C6" stroke-width="2"/>
-  <ellipse cx="48" cy="56" rx="13" ry="17" fill="#FFFDF6" stroke="#E3D9C6" stroke-width="2"/>
-  <path d="M22 66h52a6 6 0 0 1 6 6v6a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6v-6a6 6 0 0 1 6-6z" fill="#B98A4E"/>
-  <path d="M16 72h64" stroke="#9C7137" stroke-width="3"/>
+  <ellipse cx="48" cy="86" rx="30" ry="4" fill="#000000" opacity=".08"/>
+  <ellipse cx="30" cy="44" rx="12" ry="16" fill="url(#egShell)" stroke="#C9B591" stroke-width="1.6"/>
+  <ellipse cx="66" cy="44" rx="12" ry="16" fill="url(#egShell)" stroke="#C9B591" stroke-width="1.6"/>
+  <ellipse cx="48" cy="38" rx="12.5" ry="16.5" fill="url(#egShell)" stroke="#C9B591" stroke-width="1.6"/>
+  <ellipse cx="44" cy="30" rx="3" ry="4.5" fill="#FFFFFF" opacity=".9"/>
+  <path d="M12 62h72v14a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6z" fill="url(#egBox)"/>
+  <path d="M12 62c4 0 6-3 9-3s5 3 9 3 6-3 9-3 5 3 9 3 6-3 9-3 5 3 9 3 6-3 9-3v4H12z" fill="#A16F35"/>
+  <ellipse cx="27" cy="72" rx="5" ry="3.2" fill="#5E3F16" opacity=".45"/>
+  <ellipse cx="48" cy="72" rx="5" ry="3.2" fill="#5E3F16" opacity=".45"/>
+  <ellipse cx="69" cy="72" rx="5" ry="3.2" fill="#5E3F16" opacity=".45"/>
 </svg>

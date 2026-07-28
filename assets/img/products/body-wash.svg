@@ -1,9 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Body Wash">
+  <defs>
+    <linearGradient id="bwBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5FD8E8"/>
+      <stop offset=".45" stop-color="#12ADC4"/>
+      <stop offset="1" stop-color="#0A6E80"/>
+    </linearGradient>
+  </defs>
   <rect width="96" height="96" rx="18" fill="#FCE7F0"/>
-  <rect x="41" y="14" width="14" height="12" rx="4" fill="#C2185B"/>
-  <rect x="26" y="26" width="44" height="56" rx="14" fill="#EC407A"/>
-  <rect x="33" y="44" width="30" height="22" rx="5" fill="#FFF3F8"/>
-  <circle cx="41" cy="55" r="4" fill="#F8BBD0"/>
-  <circle cx="52" cy="52" r="5.5" fill="#F48FB1"/>
-  <circle cx="54" cy="62" r="3" fill="#F8BBD0"/>
+  <ellipse cx="48" cy="84" rx="22" ry="4" fill="#000000" opacity=".07"/>
+  <circle cx="66" cy="22" r="6" fill="#FFFFFF" opacity=".85"/>
+  <circle cx="74" cy="34" r="4" fill="#FFFFFF" opacity=".7"/>
+  <circle cx="27" cy="26" r="4.5" fill="#FFFFFF" opacity=".7"/>
+  <rect x="40" y="13" width="16" height="12" rx="4" fill="#08596A"/>
+  <path d="M31 25h34a7 7 0 0 1 7 7v44a8 8 0 0 1-8 8H32a8 8 0 0 1-8-8V32a7 7 0 0 1 7-7z" fill="url(#bwBody)"/>
+  <rect x="24" y="47" width="48" height="25" fill="#F0FCFE"/>
+  <rect x="33" y="53" width="26" height="4" rx="2" fill="#12ADC4"/>
+  <rect x="33" y="61" width="16" height="3" rx="1.5" fill="#9BE4EE"/>
+  <path d="M31 25h8a7 7 0 0 0-5 7v44a8 8 0 0 0 1 8h-3a8 8 0 0 1-8-8V32a7 7 0 0 1 7-7z" fill="#FFFFFF" opacity=".32"/>
 </svg>

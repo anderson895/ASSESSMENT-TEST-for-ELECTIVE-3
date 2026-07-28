@@ -74,6 +74,14 @@ function h($text)
     <p class="app-strip">Online Billing System</p>
 </header>
 
+<!-- ===================== NAV ===================== -->
+<nav class="app-nav">
+    <div class="app-nav-inner">
+        <a href="index.php" class="nav-link active">Billing / Cashier</a>
+        <a href="products.php" class="nav-link">Products</a>
+    </div>
+</nav>
+
 <main class="container">
 
     <?php if ($dbError): ?>
@@ -84,8 +92,14 @@ function h($text)
         </div>
     <?php endif; ?>
 
-    <!-- ===================== CASHIER + ORDER NUMBER ===================== -->
-    <section class="card counter-card">
+    <!-- ===================== STEP 1: CASHIER + ORDER NUMBER ===================== -->
+    <section class="card counter-card step-card">
+        <h2 class="card-title step-title">
+            <span class="step-no">1</span>
+            Who is on duty?
+            <span class="step-hint">Pick the cashier — the Order No. fills in by itself.</span>
+        </h2>
+
         <div class="counter-grid">
 
             <label class="field">
@@ -126,9 +140,13 @@ function h($text)
         </div>
     </section>
 
-    <!-- ===================== CUSTOMER DETAILS ===================== -->
-    <section class="card">
-        <h2 class="card-title">Customer Details</h2>
+    <!-- ===================== STEP 2: CUSTOMER DETAILS ===================== -->
+    <section class="card step-card">
+        <h2 class="card-title step-title">
+            <span class="step-no">2</span>
+            Who is buying?
+            <span class="step-hint">Type a new customer, or Find an existing one.</span>
+        </h2>
 
         <div class="customer-grid">
             <label class="field">
@@ -162,7 +180,15 @@ function h($text)
         <div id="historyList"></div>
     </section>
 
-    <!-- ===================== PRODUCT CATEGORIES ===================== -->
+    <!-- ===================== STEP 3: PRODUCT CATEGORIES ===================== -->
+    <section class="card step-card">
+        <h2 class="card-title step-title">
+            <span class="step-no">3</span>
+            What are they buying?
+            <span class="step-hint">Use &minus; and + to set the quantity. Totals update by themselves.</span>
+        </h2>
+    </section>
+
     <section class="categories">
         <?php foreach ($grouped as $categoryName => $category): ?>
             <div class="card category-card">
@@ -199,14 +225,24 @@ function h($text)
                                 </span>
                             </td>
                             <td class="col-qty">
-                                <input type="number" min="0" max="<?= (int) $p['stock'] ?>" step="1" value="0"
-                                       inputmode="numeric" pattern="[0-9]*"
-                                       class="qty"
-                                       <?= $p['stock'] <= 0 ? 'disabled' : '' ?>
-                                       data-product-id="<?= (int) $p['product_id'] ?>"
-                                       data-category="<?= h($p['category']) ?>"
-                                       data-stock="<?= (int) $p['stock'] ?>"
-                                       data-price="<?= (float) $p['price'] ?>">
+                                <div class="qty-wrap">
+                                    <button type="button" class="qty-btn qty-minus" tabindex="-1"
+                                            aria-label="Remove one <?= h($p['product_name']) ?>"
+                                            <?= $p['stock'] <= 0 ? 'disabled' : '' ?>>&minus;</button>
+
+                                    <input type="number" min="0" max="<?= (int) $p['stock'] ?>" step="1" value="0"
+                                           inputmode="numeric" pattern="[0-9]*"
+                                           class="qty"
+                                           <?= $p['stock'] <= 0 ? 'disabled' : '' ?>
+                                           data-product-id="<?= (int) $p['product_id'] ?>"
+                                           data-category="<?= h($p['category']) ?>"
+                                           data-stock="<?= (int) $p['stock'] ?>"
+                                           data-price="<?= (float) $p['price'] ?>">
+
+                                    <button type="button" class="qty-btn qty-plus" tabindex="-1"
+                                            aria-label="Add one <?= h($p['product_name']) ?>"
+                                            <?= $p['stock'] <= 0 ? 'disabled' : '' ?>>+</button>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -217,9 +253,62 @@ function h($text)
         <?php endforeach; ?>
     </section>
 
-    <!-- ===================== PAYMENT & DISCOUNT ===================== -->
-    <section class="card">
-        <h2 class="card-title">Payment &amp; Discount</h2>
+    <p class="form-notice" id="formNotice"></p>
+
+    <!-- ===================== STEP 4: ORDER SUMMARY ===================== -->
+    <section class="card step-card" id="billTransactions">
+        <h2 class="card-title step-title">
+            <span class="step-no">4</span>
+            Check the order
+            <span class="step-hint">This updates by itself — no need to press Total.</span>
+        </h2>
+
+        <!-- Listahan ng napiling item (ginagawa ng JavaScript). -->
+        <p class="cart-empty" id="cartEmpty">No items selected yet — set a quantity in Step 3.</p>
+        <ul class="cart-list hidden" id="cartList"></ul>
+
+        <div class="bill-grid">
+
+            <div class="bill-col">
+                <h3>Category Totals</h3>
+                <?php foreach ($grouped as $categoryName => $category): ?>
+                    <div class="bill-row">
+                        <span><?= h($categoryName) ?></span>
+                        <output data-cat-total="<?= h($categoryName) ?>">₱0.00</output>
+                    </div>
+                <?php endforeach; ?>
+                <div class="bill-row">
+                    <span>Total Items</span>
+                    <output id="totalItems">0</output>
+                </div>
+            </div>
+
+            <div class="bill-col">
+                <h3>Computation</h3>
+                <div class="bill-row"><span>Subtotal</span><output id="subtotal">₱0.00</output></div>
+                <div class="bill-row"><span id="discountLabel">Discount</span><output id="discountOut">₱0.00</output></div>
+                <div class="bill-row"><span>VATable Sales</span><output id="vatableSales">₱0.00</output></div>
+                <div class="bill-row"><span>VAT (12%)</span><output id="vatAmount">₱0.00</output></div>
+                <div class="bill-row grand"><span>Grand Total</span><output id="grandTotal">₱0.00</output></div>
+            </div>
+
+            <div class="bill-col">
+                <h3>Payment</h3>
+                <div class="bill-row"><span>Payment Method</span><output id="methodOut">Cash</output></div>
+                <div class="bill-row"><span>Amount Received</span><output id="receivedOut">₱0.00</output></div>
+                <div class="bill-row change"><span>Change</span><output id="changeDue">₱0.00</output></div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ===================== STEP 5: PAYMENT & DISCOUNT ===================== -->
+    <section class="card step-card">
+        <h2 class="card-title step-title">
+            <span class="step-no">5</span>
+            How are they paying?
+            <span class="step-hint">Change the discount here — the totals above follow along.</span>
+        </h2>
 
         <div class="payment-grid">
 
@@ -272,54 +361,22 @@ function h($text)
         </div>
     </section>
 
-    <!-- ===================== BUTTONS ===================== -->
-    <section class="card">
-        <p class="form-notice" id="formNotice"></p>
+    <!-- ===================== ACTION BAR (sticky sa ilalim) ===================== -->
+    <section class="action-bar">
+        <div class="action-live">
+            <span class="action-live-label">Grand Total</span>
+            <span class="action-live-total" id="liveGrandTotal">₱0.00</span>
+            <span class="action-live-items" id="liveItems">No items yet</span>
+        </div>
+
         <div class="button-bar">
+            <button type="button" class="btn btn-ghost" id="btnClear">Clear</button>
             <button type="button" class="btn" id="btnTotal">Total</button>
             <button type="button" class="btn btn-primary" id="btnBill">Bill</button>
-            <button type="button" class="btn" id="btnEmail">E-Mail</button>
-            <button type="button" class="btn" id="btnPrint">Print</button>
-            <button type="button" class="btn btn-ghost" id="btnClear">Clear</button>
-        </div>
-    </section>
-
-    <!-- ===================== BILL TRANSACTIONS ===================== -->
-    <section class="card" id="billTransactions">
-        <h2 class="card-title">Bill Transactions</h2>
-
-        <div class="bill-grid">
-
-            <div class="bill-col">
-                <h3>Category Totals</h3>
-                <?php foreach ($grouped as $categoryName => $category): ?>
-                    <div class="bill-row">
-                        <span><?= h($categoryName) ?></span>
-                        <output data-cat-total="<?= h($categoryName) ?>">₱0.00</output>
-                    </div>
-                <?php endforeach; ?>
-                <div class="bill-row">
-                    <span>Total Items</span>
-                    <output id="totalItems">0</output>
-                </div>
-            </div>
-
-            <div class="bill-col">
-                <h3>Computation</h3>
-                <div class="bill-row"><span>Subtotal</span><output id="subtotal">₱0.00</output></div>
-                <div class="bill-row"><span id="discountLabel">Discount</span><output id="discountOut">₱0.00</output></div>
-                <div class="bill-row"><span>VATable Sales</span><output id="vatableSales">₱0.00</output></div>
-                <div class="bill-row"><span>VAT (12%)</span><output id="vatAmount">₱0.00</output></div>
-                <div class="bill-row grand"><span>Grand Total</span><output id="grandTotal">₱0.00</output></div>
-            </div>
-
-            <div class="bill-col">
-                <h3>Payment</h3>
-                <div class="bill-row"><span>Payment Method</span><output id="methodOut">Cash</output></div>
-                <div class="bill-row"><span>Amount Received</span><output id="receivedOut">₱0.00</output></div>
-                <div class="bill-row change"><span>Change</span><output id="changeDue">₱0.00</output></div>
-            </div>
-
+            <button type="button" class="btn" id="btnPrint" disabled
+                    title="Save the bill first">Print</button>
+            <button type="button" class="btn" id="btnEmail" disabled
+                    title="Save the bill first">E-Mail</button>
         </div>
     </section>
 

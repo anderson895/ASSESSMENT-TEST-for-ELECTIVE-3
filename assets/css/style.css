@@ -710,6 +710,280 @@ select.invalid {
 body.modal-open { overflow: hidden; }
 
 /* =====================================================================
+   NAV — paglipat sa pagitan ng Billing at Products
+   ===================================================================== */
+.app-nav {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+.app-nav-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    gap: 4px;
+}
+.nav-link {
+    padding: 13px 20px;
+    font-size: .86rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+    transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.nav-link:hover { color: var(--btn-hover); background: var(--soft); }
+.nav-link.active {
+    color: var(--header);
+    border-bottom-color: var(--btn);
+}
+
+/* =====================================================================
+   STEP CARDS — binibilang ang bawat hakbang ng transaksyon
+   ===================================================================== */
+.step-card { position: relative; }
+.step-title {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+.step-no {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--btn);
+    color: #fff;
+    font-size: .82rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+}
+.step-hint {
+    margin-left: auto;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* =====================================================================
+   QTY STEPPER — plus at minus para hindi na kailangang mag-type
+   ===================================================================== */
+.qty-wrap {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    justify-content: flex-end;
+}
+.qty-btn {
+    flex: none;
+    width: 23px;
+    height: 27px;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--soft);
+    color: var(--btn-hover);
+    border-radius: var(--r-sm);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease;
+}
+.qty-btn:hover:not(:disabled) { background: var(--btn); color: #fff; border-color: var(--btn); }
+.qty-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Itago ang sariling arrows ng browser — ang minus at plus na natin
+   ang gagamitin, para hindi doble ang lalabas kapag naka-hover. */
+.qty::-webkit-outer-spin-button,
+.qty::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.qty {
+    -moz-appearance: textfield;
+    appearance: textfield;
+    text-align: center;
+}
+
+/* Naka-highlight ang buong row kapag may binili na rito. */
+.product-table tr.has-qty { background: #FFF6FA; }
+.product-table tr.has-qty .col-name { color: var(--header); font-weight: 700; }
+
+/* =====================================================================
+   ORDER SUMMARY — listahan ng napiling item (Step 4)
+   ===================================================================== */
+.cart-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: .86rem;
+    padding: 18px 10px;
+    margin: 0;
+}
+.cart-list {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+}
+.cart-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: .86rem;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+}
+.cart-list li:last-child { border-bottom: none; }
+.cart-list img {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    object-fit: cover;
+    background: #fff;
+}
+.cart-name { flex: 1; min-width: 0; font-weight: 600; }
+.cart-qty {
+    flex: none;
+    font-size: .76rem;
+    color: var(--muted);
+    font-weight: 600;
+}
+.cart-amount { flex: none; font-weight: 700; color: var(--btn-hover); }
+
+/* =====================================================================
+   STICKY ACTION BAR — laging abot-kamay ang Bill
+   ===================================================================== */
+.action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 45;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    box-shadow: 0 -6px 22px rgba(216, 27, 96, .13);
+    padding: 13px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.action-live {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+    min-width: 150px;
+}
+.action-live-label {
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .7px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.action-live-total {
+    font-size: 1.32rem;
+    font-weight: 700;
+    color: var(--header);
+}
+.action-live-items { font-size: .74rem; color: var(--muted); font-weight: 600; }
+.action-bar .button-bar { flex: 1; justify-content: flex-end; }
+
+/* =====================================================================
+   PRODUCTS PAGE (products.php)
+   ===================================================================== */
+.product-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+}
+.field-image { grid-column: 1 / -1; }
+.image-picker {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.image-preview {
+    width: 74px;
+    height: 74px;
+    flex: none;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: #fff;
+    object-fit: cover;
+    padding: 2px;
+}
+.image-picker-controls { flex: 1; min-width: 0; }
+.image-picker-controls input[type="file"] {
+    font-size: .84rem;
+    font-family: inherit;
+    color: var(--text);
+    max-width: 100%;
+}
+.hint-tight { margin: 7px 0 0; }
+
+.button-bar-left { justify-content: flex-start; margin-top: 18px; }
+
+.list-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.list-head .card-title { flex: 1; margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+.count-badge {
+    flex: none;
+    background: var(--soft);
+    color: var(--btn-hover);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: .74rem;
+    font-weight: 700;
+}
+
+.table-scroll {
+    overflow-x: auto;
+    border-top: 2px solid var(--border);
+    margin-top: 12px;
+}
+.manage-table { font-size: .88rem; }
+.manage-table td { padding: 8px 6px; }
+.col-category { color: var(--muted); font-size: .82rem; }
+.col-actions { white-space: nowrap; text-align: right; }
+/* Kailangan ng "th" dito para malampasan ang .product-table th { text-align: left }. */
+.product-table th.col-actions { text-align: right; }
+.empty-row {
+    text-align: center;
+    color: var(--muted);
+    padding: 26px 10px;
+    font-size: .88rem;
+}
+
+.btn-tiny {
+    padding: 6px 13px;
+    font-size: .78rem;
+    border-radius: 6px;
+    margin-left: 5px;
+}
+.btn-danger { background: #E53935; }
+.btn-danger:hover { background: #C62828; box-shadow: 0 4px 12px rgba(198, 40, 40, .26); }
+
+/* =====================================================================
    RESPONSIVE
    ===================================================================== */
 @media (max-width: 1080px) {
@@ -729,6 +1003,8 @@ body.modal-open { overflow: hidden; }
 
     .customer-grid { grid-template-columns: 1fr 1fr; }
     .find-wrap { grid-column: span 2; }
+
+    .product-form-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 560px) {
@@ -743,6 +1019,15 @@ body.modal-open { overflow: hidden; }
     .email-row { flex-direction: column; }
     .history-totals { justify-content: flex-start; gap: 12px; }
     .receipt-wrap { padding: 0; background: none; }
+
+    .product-form-grid { grid-template-columns: 1fr; }
+    .image-picker { flex-direction: column; align-items: flex-start; }
+
+    .action-bar { flex-direction: column; align-items: stretch; gap: 11px; }
+    .action-live { align-items: center; text-align: center; min-width: 0; }
+    .action-bar .button-bar { justify-content: center; }
+
+    .nav-link { flex: 1; text-align: center; padding: 12px 8px; }
 }
 
 /* =====================================================================
@@ -755,6 +1040,7 @@ body.modal-open { overflow: hidden; }
 
     /* Itago ang buong app para walang blangkong pahina. */
     .app-header,
+    .app-nav,
     main.container { display: none !important; }
 
     /* Hayaang dumaloy ang resibo mula sa itaas -> isang pahina lang. */

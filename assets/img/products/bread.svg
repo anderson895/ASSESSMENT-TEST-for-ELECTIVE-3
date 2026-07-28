@@ -1,9 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Bread">
+  <defs>
+    <linearGradient id="brCrust" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#D9913F"/>
+      <stop offset=".45" stop-color="#B96F22"/>
+      <stop offset="1" stop-color="#7E4510"/>
+    </linearGradient>
+    <linearGradient id="brCrumb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF1D8"/>
+      <stop offset="1" stop-color="#EBCB98"/>
+    </linearGradient>
+  </defs>
   <rect width="96" height="96" rx="18" fill="#E6F6EC"/>
-  <path d="M20 44c0-11 12-18 28-18s28 7 28 18v22a8 8 0 0 1-8 8H28a8 8 0 0 1-8-8z" fill="#D9A05B"/>
-  <path d="M20 44c0-11 12-18 28-18s28 7 28 18z" fill="#EDBE7C"/>
-  <rect x="28" y="50" width="40" height="18" rx="5" fill="#F6DDB6"/>
-  <circle cx="38" cy="58" r="2.5" fill="#E5C08D"/>
-  <circle cx="49" cy="61" r="2" fill="#E5C08D"/>
-  <circle cx="58" cy="56" r="2.5" fill="#E5C08D"/>
+  <ellipse cx="48" cy="84" rx="28" ry="4" fill="#000000" opacity=".08"/>
+  <path d="M16 42c0-13 14-21 32-21s32 8 32 21v26a8 8 0 0 1-8 8H24a8 8 0 0 1-8-8z" fill="url(#brCrust)"/>
+  <path d="M24 30c4-5 12-8 24-8s20 3 24 8c-4 4-12 6-24 6s-20-2-24-6z" fill="#E8A855" opacity=".75"/>
+  <path d="M27 45h42v31H27z" fill="url(#brCrumb)"/>
+  <path d="M27 45h42v5H27z" fill="#D4A461" opacity=".5"/>
+  <circle cx="38" cy="57" r="3.2" fill="#DDB681" opacity=".95"/>
+  <circle cx="51" cy="63" r="2.6" fill="#DDB681" opacity=".95"/>
+  <circle cx="60" cy="55" r="3.2" fill="#DDB681" opacity=".95"/>
+  <circle cx="44" cy="69" r="2.4" fill="#DDB681" opacity=".95"/>
+  <circle cx="58" cy="70" r="2.2" fill="#DDB681" opacity=".95"/>
+  <path d="M16 42c0-13 14-21 32-21 2 0 4 .1 6 .3C40 24 30 32 30 42v34h-6a8 8 0 0 1-8-8z" fill="#FFFFFF" opacity=".2"/>
 </svg>

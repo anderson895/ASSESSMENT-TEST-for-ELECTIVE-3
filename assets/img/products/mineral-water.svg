@@ -1,9 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Mineral Water">
+  <defs>
+    <linearGradient id="mwGlass" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F2FBFF"/>
+      <stop offset=".4" stop-color="#DCF1FC"/>
+      <stop offset="1" stop-color="#A9CFE4"/>
+    </linearGradient>
+    <linearGradient id="mwWater" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7FD4F7"/>
+      <stop offset=".45" stop-color="#2FA3DC"/>
+      <stop offset="1" stop-color="#146A99"/>
+    </linearGradient>
+  </defs>
   <rect width="96" height="96" rx="18" fill="#E4F3FD"/>
-  <rect x="42" y="12" width="12" height="10" rx="3" fill="#1B87BD"/>
-  <path d="M41 22h14l7 12v40a8 8 0 0 1-8 8H42a8 8 0 0 1-8-8V34z" fill="#CFEAF9"/>
-  <path d="M34 48h28v26a8 8 0 0 1-8 8H42a8 8 0 0 1-8-8z" fill="#7FCDF3"/>
-  <rect x="34" y="36" width="28" height="12" rx="3" fill="#2FA3DC"/>
-  <circle cx="44" cy="62" r="3" fill="#E4F3FD"/>
-  <circle cx="53" cy="70" r="2.2" fill="#E4F3FD"/>
+  <ellipse cx="48" cy="84" rx="20" ry="4" fill="#000000" opacity=".08"/>
+  <rect x="41" y="10" width="14" height="10" rx="3" fill="#0F5D87"/>
+  <rect x="42" y="19" width="12" height="6" fill="#BFE3F4"/>
+  <path d="M41 24h14l7 12v40a8 8 0 0 1-8 8H42a8 8 0 0 1-8-8V36z" fill="url(#mwGlass)"/>
+  <path d="M34 46h28v30a8 8 0 0 1-8 8H42a8 8 0 0 1-8-8z" fill="url(#mwWater)"/>
+  <rect x="34" y="52" width="28" height="16" fill="#F2FBFF"/>
+  <rect x="39" y="57" width="18" height="3.5" rx="1.75" fill="#2FA3DC"/>
+  <rect x="39" y="63" width="11" height="2.5" rx="1.25" fill="#9BD6EF"/>
+  <circle cx="43" cy="74" r="2.6" fill="#DCF1FC" opacity=".8"/>
+  <circle cx="53" cy="78" r="2" fill="#DCF1FC" opacity=".8"/>
+  <path d="M41 24h5l-4 12v40a8 8 0 0 0 .4 8H42a8 8 0 0 1-8-8V36z" fill="#FFFFFF" opacity=".55"/>
 </svg>
