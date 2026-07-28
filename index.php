@@ -50,7 +50,10 @@ function h($text)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($store['name']) ?> — Online Billing System</title>
     <link rel="icon" type="image/png" href="<?= h($store['logo']) ?>">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?= h(asset('assets/css/style.css')) ?>">
+
+    <?php /* Ipapakita ang anumang error ng JavaScript bilang pulang banner. */ ?>
+    <?php require __DIR__ . '/config/error_banner.php'; ?>
 </head>
 <body>
 
@@ -155,8 +158,8 @@ function h($text)
             </label>
 
             <label class="field">
-                <span class="field-label">Contact Number</span>
-                <input type="text" id="contactNumber" placeholder="09xxxxxxxxx">
+                <span class="field-label">Contact Number <em>(optional)</em></span>
+                <input type="text" id="contactNumber" placeholder="09xxxxxxxxx or ORD-20260728-0001">
             </label>
 
             <div class="find-wrap">
@@ -166,10 +169,11 @@ function h($text)
         </div>
 
         <p class="hint">
-            <strong>Find</strong> an existing customer by Contact Number or by any Order Number
-            printed on a past receipt — it also lists that customer's previous orders below.
-            <strong>Add Customer</strong> registers a new one. The <strong>Order Number is
-            generated automatically</strong> when you press Bill.
+            Only the <strong>Customer Name</strong> is required — leave the Contact Number blank
+            for a walk-in. <strong>Find</strong> looks up a past customer by Contact Number
+            <em>or</em> by any <strong>Order Number</strong> printed on an old receipt, and lists
+            their previous orders below. <strong>Add Customer</strong> registers a new one. The
+            <strong>Order Number is generated automatically</strong> when you press Bill.
         </p>
     </section>
 
@@ -410,6 +414,6 @@ function h($text)
     </div>
 </div>
 
-<script src="assets/js/app.js"></script>
+<script src="<?= h(asset('assets/js/app.js')) ?>"></script>
 </body>
 </html>

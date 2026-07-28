@@ -146,6 +146,7 @@ function buildPayload(extra) {
    --------------------------------------------------------------------- */
 
 // Ang mga required na kahon.
+/* Ang pangalan lang ang talagang kailangan — optional ang contact number. */
 const REQUIRED_BOXES = ["customerName", "contactNumber"];
 
 /**
@@ -802,8 +803,8 @@ function validateBeforeBilling() {
     const customer = getCustomer();
     const cashier  = getCashierId();
 
+    // Ang contact number ay OPTIONAL — hindi ito kinukulayan ng pula.
     markInvalid("customerName",  customer.name === "");
-    markInvalid("contactNumber", customer.contact === "");
     markInvalid("cashierSelect", cashier === 0);
 
     if (cashier === 0) {
@@ -811,8 +812,9 @@ function validateBeforeBilling() {
         return false;
     }
 
-    if (customer.name === "" || customer.contact === "") {
-        showMessage("Please complete the highlighted customer fields before billing.", "err");
+    if (customer.name === "") {
+        showMessage("Please enter the Customer Name before billing.", "err");
+        document.getElementById("customerName").focus();
         return false;
     }
 
@@ -831,7 +833,7 @@ async function clickFind() {
     // Walang inilagay.
     if (keyword === "") {
         markInvalid("contactNumber", true);
-        showMessage("Enter a Contact Number (or an Order Number from a receipt) to search.", "err");
+        showMessage("Type a Contact Number or an Order Number (e.g. ORD-20260728-0001) to search.", "err");
         contactBox.focus();
         return;
     }
@@ -876,11 +878,12 @@ async function clickFind() {
 async function clickAddCustomer() {
     const customer = getCustomer();
 
-    markInvalid("customerName",  customer.name === "");
-    markInvalid("contactNumber", customer.contact === "");
+    // Ang pangalan lang ang kailangan — puwedeng walang numero ang walk-in.
+    markInvalid("customerName", customer.name === "");
 
-    if (customer.name === "" || customer.contact === "") {
-        showMessage("Please complete the Customer Name and Contact Number to add a customer.", "err");
+    if (customer.name === "") {
+        showMessage("Please enter the Customer Name to add a customer.", "err");
+        document.getElementById("customerName").focus();
         return;
     }
 

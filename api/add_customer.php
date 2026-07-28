@@ -6,9 +6,9 @@
  * Nagreregister ng BAGONG customer at sini-save sa database,
  * kahit wala pang order/bill.
  *
- * Dalawa lang ang kailangan:
- *   - Customer Name
- *   - Contact Number
+ * Isa lang ang talagang kailangan:
+ *   - Customer Name        (kailangan)
+ *   - Contact Number       (OPTIONAL — puwedeng walang numero ang walk-in)
  *
  * Wala nang Order Number dito — automatic na iyon tuwing may bill.
  * -----------------------------------------------------------------
@@ -21,11 +21,11 @@ $input = json_input();
 $name    = isset($input['name'])    ? trim($input['name'])    : '';
 $contact = isset($input['contact']) ? trim($input['contact']) : '';
 
-// ---- Dapat kompleto ang dalawang field ----
-if ($name == '' || $contact == '') {
+// ---- Ang pangalan lang ang kailangan ----
+if ($name == '') {
     json_response(array(
         'ok'    => false,
-        'error' => 'Please enter the Customer Name and Contact Number.'
+        'error' => 'Please enter the Customer Name.'
     ), 422);
 }
 
@@ -34,9 +34,13 @@ $customerModel = new Customer(db());
 // ---- Rehistrado na ba? (parehong pangalan at contact) ----
 $existing = $customerModel->findByNameAndContact($name, $contact);
 if ($existing != null) {
+    $reason = ($contact == '')
+        ? $name . ' is already registered as a walk-in (no contact number).'
+        : $name . ' is already registered with that contact number.';
+
     json_response(array(
         'ok'       => false,
-        'error'    => $name . ' is already registered with that contact number.',
+        'error'    => $reason,
         'customer' => $existing
     ), 409);
 }

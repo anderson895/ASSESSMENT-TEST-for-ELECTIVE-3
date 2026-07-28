@@ -29,11 +29,11 @@ if (!is_array($cart) || count($cart) == 0) {
     ), 422);
 }
 
-// ---- Kailangang kompleto ang detalye ng customer ----
-if ($customer['name'] == '' || $customer['contact'] == '') {
+// ---- Ang PANGALAN lang ang kailangan (optional ang contact number) ----
+if ($customer['name'] == '') {
     json_response(array(
         'ok'    => false,
-        'error' => 'Please enter the Customer Name and Contact Number before billing.'
+        'error' => 'Please enter the Customer Name before billing.'
     ), 422);
 }
 

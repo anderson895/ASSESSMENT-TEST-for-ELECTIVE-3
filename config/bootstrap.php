@@ -60,6 +60,29 @@ function store()
 }
 
 /**
+ * Buuin ang address ng isang CSS o JavaScript file, may kasamang bersyon.
+ *
+ * BAKIT ITO KAILANGAN:
+ * Itinatago (cache) ng browser ang .css at .js para bumilis ang pagbukas.
+ * Ang problema, kapag binago natin ang code, LUMANG kopya pa rin ang
+ * ginagamit ng browser — kaya may PC na gumagana at may hindi, o gumagana
+ * sa isang browser pero patay sa isa pa.
+ *
+ * Ang solusyon: idikit ang oras ng huling pagbago ng file, halimbawa
+ * "assets/js/app.js?v=1753692000". Kapag binago ang file, iba na ang
+ * numero — kaya napipilitang kumuha ng bago ang browser.
+ */
+function asset($relativePath)
+{
+    $fullPath = dirname(__DIR__) . '/' . $relativePath;
+
+    // Kapag wala ang file, huwag nang mag-cache para agad makita ang mali.
+    $version = file_exists($fullPath) ? filemtime($fullPath) : time();
+
+    return $relativePath . '?v=' . $version;
+}
+
+/**
  * Kunin ang koneksyon sa database.
  * Isang koneksyon lang ang ginagawa sa buong request — mahalaga ito
  * para gumana nang tama ang transaction sa pag-save ng order.

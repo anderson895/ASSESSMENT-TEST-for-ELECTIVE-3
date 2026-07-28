@@ -46,7 +46,10 @@ function h($text)
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products — <?= h($store['name']) ?></title>
     <link rel="icon" type="image/png" href="<?= h($store['logo']) ?>">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?= h(asset('assets/css/style.css')) ?>">
+
+    <?php /* Ipapakita ang anumang error ng JavaScript bilang pulang banner. */ ?>
+    <?php require __DIR__ . '/config/error_banner.php'; ?>
 </head>
 <body>
 
@@ -224,6 +227,6 @@ function h($text)
 
 </main>
 
-<script src="assets/js/products.js"></script>
+<script src="<?= h(asset('assets/js/products.js')) ?>"></script>
 </body>
 </html>

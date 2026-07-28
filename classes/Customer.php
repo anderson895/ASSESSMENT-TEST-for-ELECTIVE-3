@@ -78,7 +78,10 @@ class Customer
         $name    = trim($name);
         $contact = trim($contact);
 
-        if ($name == '' || $contact == '') {
+        // Ang pangalan lang ang talagang kailangan. Kapag walang contact
+        // number (walk-in), hahanapin natin ang dating walk-in na may
+        // parehong pangalan — kaya hindi ito magiging duplicate.
+        if ($name == '') {
             return null;
         }
 
@@ -115,9 +118,11 @@ class Customer
         $name    = trim($name);
         $contact = trim($contact);
 
-        if ($name == '' || $contact == '') {
+        // Ang PANGALAN lang ang kailangan. OPTIONAL na ang contact number
+        // para mabilis ang walk-in na hindi nagbibigay ng numero.
+        if ($name == '') {
             throw new RuntimeException(
-                'Please enter the Customer Name and Contact Number.'
+                'Please enter the Customer Name.'
             );
         }
 
